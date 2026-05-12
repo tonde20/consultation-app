@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { initDb, dbAll, dbGet } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   const session = getSession();
   if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-  const db = getDb();
+  await initDb();
   const { searchParams } = new URL(req.url);
   const doctorId = searchParams.get('doctor_id');
 
@@ -20,18 +20,18 @@ export async function GET(req: NextRequest) {
   const params: any[] = [];
 
   if (session.role === 'medecin') {
-    query += ' WHERE rv.doctor_id = ?';
+    query += ' WHERE rv.doctor_id = $1';
     params.push(session.id);
   } else if (session.role === 'patient') {
-    query += ' WHERE rv.patient_id = (SELECT id FROM patients WHERE code = ?)';
+    query += ' WHERE rv.patient_id = (SELECT id FROM patients WHERE code = $1)';
     params.push(session.code);
   } else if (doctorId) {
-    query += ' WHERE rv.doctor_id = ?';
+    query += ' WHERE rv.doctor_id = $1';
     params.push(doctorId);
   }
 
   query += ' ORDER BY rv.date_heure DESC LIMIT 100';
-  const rdvs = db.prepare(query).all(...params);
+  const rdvs = await dbAll(query, params);
   return NextResponse.json(rdvs);
 }
 
@@ -44,17 +44,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Médecin et date requis' }, { status: 400 });
   }
 
-  const db = getDb();
+  await initDb();
   let actualPatientId = patient_id;
   if (session.role === 'patient') {
-    const pat = db.prepare('SELECT id FROM patients WHERE code = ?').get(session.code) as any;
+    const pat = await dbGet('SELECT id FROM patients WHERE code = $1', [session.code]);
     actualPatientId = pat?.id;
   }
   if (!actualPatientId) return NextResponse.json({ error: 'Patient requis' }, { status: 400 });
 
-  const result = db.prepare(
-    'INSERT INTO rendez_vous (patient_id, doctor_id, date_heure, motif, statut) VALUES (?, ?, ?, ?, ?)'
-  ).run(actualPatientId, doctor_id, date_heure, motif || null, 'en_attente');
+  const result = await dbGet(
+    'INSERT INTO rendez_vous (patient_id, doctor_id, date_heure, motif, statut) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+    [actualPatientId, doctor_id, date_heure, motif || null, 'en_attente']
+  );
 
-  return NextResponse.json({ id: result.lastInsertRowid, success: true });
+  return NextResponse.json({ id: result.id, success: true });
 }

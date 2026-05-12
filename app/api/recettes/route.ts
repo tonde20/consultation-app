@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { initDb, dbAll, dbGet } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -11,32 +11,37 @@ export async function GET(req: NextRequest) {
   const dateDebut = searchParams.get('date_debut') || '';
   const dateFin = searchParams.get('date_fin') || '';
 
-  const db = getDb();
+  await initDb();
+
   let where = '';
   const params: string[] = [];
   if (dateDebut && dateFin) {
-    where = 'WHERE date(paiements.date) BETWEEN ? AND ?';
+    where = 'WHERE date(paiements.date) BETWEEN $1 AND $2';
     params.push(dateDebut, dateFin);
   } else if (dateDebut) {
-    where = 'WHERE date(paiements.date) >= ?';
+    where = 'WHERE date(paiements.date) >= $1';
     params.push(dateDebut);
   }
 
-  const paiements = db.prepare(`
-    SELECT paiements.*, p.nom as patient_nom, p.prenom as patient_prenom, p.code as patient_code
-    FROM paiements
-    LEFT JOIN patients p ON paiements.patient_id = p.id
-    ${where}
-    ORDER BY paiements.date DESC LIMIT 500
-  `).all(...params);
+  const paiements = await dbAll(
+    `SELECT paiements.*, p.nom as patient_nom, p.prenom as patient_prenom, p.code as patient_code
+     FROM paiements LEFT JOIN patients p ON paiements.patient_id = p.id
+     ${where} ORDER BY paiements.date DESC LIMIT 500`,
+    params
+  );
 
-  const totals = db.prepare(`
-    SELECT type, SUM(montant) as total, COUNT(*) as count
-    FROM paiements ${where}
-    GROUP BY type
-  `).all(...params);
+  // Pour totals et globalTotal, les $1/$2 restent les mêmes params
+  const whereForTotals = where.replace('paiements.date', 'date');
+  const totals = await dbAll(
+    `SELECT type, SUM(montant) as total, COUNT(*) as count
+     FROM paiements ${whereForTotals} GROUP BY type`,
+    params
+  );
 
-  const globalTotal = db.prepare(`SELECT SUM(montant) as total FROM paiements ${where}`).get(...params) as any;
+  const globalTotal = await dbGet(
+    `SELECT SUM(montant) as total FROM paiements ${whereForTotals}`,
+    params
+  );
 
   return NextResponse.json({ paiements, totals, globalTotal: globalTotal?.total || 0 });
 }

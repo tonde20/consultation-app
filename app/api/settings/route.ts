@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { initDb, dbAll, dbRun } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
 export async function GET() {
-  const db = getDb();
-  const rows = db.prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[];
+  await initDb();
+  const rows = await dbAll('SELECT key, value FROM settings') as { key: string; value: string }[];
   const settings: Record<string, string> = {};
   rows.forEach(r => { settings[r.key] = r.value; });
   return NextResponse.json(settings);
@@ -16,10 +16,12 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
   }
   const data = await req.json();
-  const db = getDb();
-  const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+  await initDb();
   for (const [key, value] of Object.entries(data)) {
-    stmt.run(key, String(value));
+    await dbRun(
+      'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
+      [key, String(value)]
+    );
   }
   return NextResponse.json({ success: true });
 }

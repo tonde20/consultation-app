@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { getDb } from './db';
+import { initDb, dbGet } from './db';
 import bcrypt from 'bcryptjs';
 
 export type UserRole = 'admin' | 'medecin' | 'patient';
@@ -32,22 +32,22 @@ export async function loginUser(
   identifier: string,
   password: string
 ): Promise<SessionUser | null> {
-  const db = getDb();
+  await initDb();
 
   if (role === 'admin') {
-    const admin = db.prepare('SELECT * FROM admins WHERE username = ?').get(identifier) as any;
+    const admin = await dbGet('SELECT * FROM admins WHERE username = $1', [identifier]);
     if (!admin || !bcrypt.compareSync(password, admin.password)) return null;
     return { id: admin.id, role: 'admin', nom: admin.nom, username: admin.username };
   }
 
   if (role === 'medecin') {
-    const doc = db.prepare('SELECT * FROM doctors WHERE username = ? AND actif = 1').get(identifier) as any;
+    const doc = await dbGet('SELECT * FROM doctors WHERE username = $1 AND actif = 1', [identifier]);
     if (!doc || !bcrypt.compareSync(password, doc.password)) return null;
     return { id: doc.id, role: 'medecin', nom: `Dr. ${doc.prenom} ${doc.nom}`, username: doc.username };
   }
 
   if (role === 'patient') {
-    const patient = db.prepare('SELECT * FROM patients WHERE code = ?').get(identifier) as any;
+    const patient = await dbGet('SELECT * FROM patients WHERE code = $1', [identifier]);
     if (!patient || !bcrypt.compareSync(password, patient.password)) return null;
     return { id: patient.id, role: 'patient', nom: `${patient.prenom} ${patient.nom}`, code: patient.code };
   }
