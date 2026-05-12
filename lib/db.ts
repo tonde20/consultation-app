@@ -7,16 +7,16 @@ export { sql };
 
 // Helpers pour simplifier les appels
 export async function dbGet(query: string, params: any[] = []) {
-  const result = await (sql as any)(query, params);
+  const result = await sql.query(query, params);
   return result[0] || null;
 }
 
 export async function dbAll(query: string, params: any[] = []) {
-  return await (sql as any)(query, params);
+  return await sql.query(query, params);
 }
 
 export async function dbRun(query: string, params: any[] = []) {
-  return await (sql as any)(query, params);
+  return await sql.query(query, params);
 }
 
 export async function initDb() {
