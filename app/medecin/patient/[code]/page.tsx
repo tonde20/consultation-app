@@ -164,7 +164,7 @@ export default function PatientDossierPage() {
         patient: data.patient,
         certificat: { type: certForm.type, contenu, date: new Date().toISOString(), doctor_prenom, doctor_nom },
       });
-      setCertForm({ type: "Médical", contenu: "", nb_jours: "", date_debut: "", date_fin: "", date_deces: "", heure_deces: "", lieu_deces: "", cause_deces: "sa maladie", cause_autres: "" });
+      setCertForm({ type: "Médical", contenu: "", nb_jours: "", date_debut: "", date_fin: "", date_deces: "", heure_deces: "", lieu_deces: "", cause_deces: "sa maladie", cause_autres: "", activite_sportive: "la pratique des activités sportives" });
       const updated = await fetch(`/api/patients/${code}`);
       if (updated.ok) setData(await updated.json());
     } else {
