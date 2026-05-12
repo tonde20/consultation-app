@@ -36,7 +36,14 @@ export async function GET(_: NextRequest, { params }: { params: { code: string }
     [patient.id]
   );
 
-  return NextResponse.json({ patient, consultations, rendez_vous });
+  const certificats = await dbAll(
+    `SELECT c.id, c.type, c.date, c.montant, d.nom as doctor_nom, d.prenom as doctor_prenom
+     FROM certificats c JOIN doctors d ON c.doctor_id = d.id
+     WHERE c.patient_id = $1 ORDER BY c.date DESC`,
+    [patient.id]
+  );
+
+  return NextResponse.json({ patient, consultations, rendez_vous, certificats });
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { code: string } }) {

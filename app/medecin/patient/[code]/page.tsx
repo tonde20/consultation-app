@@ -34,7 +34,7 @@ function imcLabel(imc: number): { label: string; color: string } {
 export default function PatientDossierPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
-  const [data, setData] = useState<{ patient: Patient; consultations: Consultation[]; rendez_vous: any[] } | null>(null);
+  const [data, setData] = useState<{ patient: Patient; consultations: Consultation[]; rendez_vous: any[]; certificats: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"dossier" | "nouvelle" | "certificat" | "rdv">("dossier");
   const [selectedConsult, setSelectedConsult] = useState<Consultation | null>(null);
@@ -61,6 +61,7 @@ export default function PatientDossierPage() {
     lieu_deces: "",
     cause_deces: "sa maladie",
     cause_autres: "",
+    activite_sportive: "la pratique des activités sportives",
   });
 
   const [rdvForm, setRdvForm] = useState({ doctor_id: "", date_heure: "", motif: "" });
@@ -106,6 +107,13 @@ export default function PatientDossierPage() {
   };
 
   const buildCertContenu = (doctorName: string): string => {
+    if (certForm.type === "Aptitude") {
+      const civilite = data?.patient.sexe === 'F' ? 'Mme' : 'M.';
+      const dateJour = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+      const nom = data ? `${data.patient.prenom} ${data.patient.nom}` : '';
+      const activite = certForm.activite_sportive || 'la pratique des activités sportives';
+      return `Je soussigné(e), ${doctorName}, Docteur en médecine, certifie avoir examiné ce jour ${dateJour} ${civilite} ${nom} et le/la déclare apte à ${activite}, sans contre-indication médicale apparente à ce jour.\n\nLe présent certificat est délivré pour servir et valoir ce que de droit.`;
+    }
     if (certForm.type === "Repos") {
       const civilite = data?.patient.sexe === 'F' ? 'Mme' : 'M.';
       const dateJour = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -195,7 +203,7 @@ export default function PatientDossierPage() {
   if (loading) return <div className="p-8 text-gray-400">Chargement du dossier...</div>;
   if (!data) return <div className="p-8"><p className="text-red-600">Patient non trouvé.</p><button onClick={() => router.push("/medecin")} className="btn-secondary mt-4">Retour</button></div>;
 
-  const { patient, consultations, rendez_vous } = data;
+  const { patient, consultations, rendez_vous, certificats } = data;
   const age = patient.date_naissance ? Math.floor((Date.now() - new Date(patient.date_naissance).getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
 
   // IMC du formulaire en cours
@@ -378,17 +386,31 @@ export default function PatientDossierPage() {
       )}
 
       {/* Onglets */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-6 w-fit">
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key as any)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === tab.key ? "bg-white text-primary-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            <span>{tab.icon}</span>{tab.label}
-          </button>
-        ))}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-6 w-fit flex-wrap">
+        {tabs.map(tab => {
+          const isLocked = patient.decede === 1 && tab.key !== "dossier";
+          return (
+            <button
+              key={tab.key}
+              onClick={() => !isLocked && setActiveTab(tab.key as any)}
+              disabled={isLocked}
+              title={isLocked ? "Action impossible : patient décédé" : undefined}
+              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-all
+                ${activeTab === tab.key ? "bg-white text-primary-700 shadow-sm" : ""}
+                ${isLocked ? "opacity-40 cursor-not-allowed text-gray-400" : "text-gray-500 hover:text-gray-700"}`}
+            >
+              <span>{tab.icon}</span>{tab.label}
+              {isLocked && <span className="text-xs">🔒</span>}
+            </button>
+          );
+        })}
       </div>
+      {patient.decede === 1 && (
+        <div className="mb-4 px-4 py-2.5 rounded-lg text-sm bg-red-50 text-red-700 border border-red-200 flex items-center gap-2">
+          <span>✝</span>
+          Ce patient est décédé. Seule la consultation du dossier médical reste possible.
+        </div>
+      )}
 
       {/* Onglet Dossier */}
       {activeTab === "dossier" && (
@@ -431,6 +453,31 @@ export default function PatientDossierPage() {
               </div>
             </div>
           ))}
+
+          {certificats && certificats.length > 0 && (
+            <div className="mt-6">
+              <h2 className="font-semibold text-gray-700 mb-3">Certificats émis <span className="text-gray-400 font-normal">({certificats.length})</span></h2>
+              {certificats.map((cert: any) => (
+                <div key={cert.id} className="card mb-3 border-l-4 border-l-teal-300">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-medium text-gray-800">Certificat {cert.type}</span>
+                        {cert.type === "Décès" && (
+                          <span className="inline-flex items-center gap-0.5 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">✝ Décès</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {new Date(cert.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
+                        {" · "}Dr. {cert.doctor_prenom} {cert.doctor_nom}
+                      </p>
+                    </div>
+                    <span className="text-xs font-medium text-teal-700 bg-teal-50 px-2 py-1 rounded">{cert.montant?.toLocaleString()} FCFA</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {rendez_vous.length > 0 && (
             <div className="mt-6">
@@ -620,7 +667,23 @@ export default function PatientDossierPage() {
                 </select>
               </div>
 
-              {certForm.type === "Repos" ? (
+              {certForm.type === "Aptitude" ? (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Paramètres du certificat d'aptitude</p>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Activité concernée *</label>
+                    <input
+                      type="text"
+                      value={certForm.activite_sportive}
+                      onChange={e => setCertForm(f => ({ ...f, activite_sportive: e.target.value }))}
+                      className="input-field"
+                      placeholder="Ex: la pratique des activités sportives, la conduite de véhicules..."
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-green-700">Le texte du certificat sera généré automatiquement avec le nom du médecin, la date du jour et le nom du patient.</p>
+                </div>
+              ) : certForm.type === "Repos" ? (
                 <div className="space-y-3">
                   <div className="bg-primary-50 border border-primary-100 rounded-xl p-4">
                     <p className="text-xs font-semibold text-primary-700 uppercase tracking-wide mb-3">Paramètres du repos médical</p>
