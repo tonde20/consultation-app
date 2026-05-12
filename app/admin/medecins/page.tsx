@@ -18,6 +18,7 @@ export default function MedecinsPage() {
   const [editingDoc, setEditingDoc] = useState<Doctor | null>(null);
   const [form, setForm] = useState({ nom: "", prenom: "", telephone: "", specialite: "Médecin généraliste", username: "", password: "" });
   const [message, setMessage] = useState({ type: "", text: "" });
+  const [confirmDelete, setConfirmDelete] = useState<Doctor | null>(null);
 
   const fetchDoctors = () => {
     setLoading(true);
@@ -53,6 +54,20 @@ export default function MedecinsPage() {
       body: JSON.stringify({ actif: doc.actif ? 0 : 1 }),
     });
     fetchDoctors();
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    const res = await fetch(`/api/doctors/${confirmDelete.id}`, { method: "DELETE" });
+    if (res.ok) {
+      setMessage({ type: "success", text: `Dr. ${confirmDelete.prenom} ${confirmDelete.nom} supprimé définitivement.` });
+      setConfirmDelete(null);
+      fetchDoctors();
+    } else {
+      const data = await res.json();
+      setMessage({ type: "error", text: data.error || "Erreur lors de la suppression" });
+      setConfirmDelete(null);
+    }
   };
 
   const startEdit = (doc: Doctor) => {
@@ -122,6 +137,24 @@ export default function MedecinsPage() {
         </div>
       )}
 
+      {/* Modal confirmation suppression */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="font-semibold text-red-700 mb-2">Confirmer la suppression</h2>
+            <p className="text-gray-600 text-sm mb-1">Vous allez supprimer définitivement :</p>
+            <p className="font-bold text-gray-800 mb-1">Dr. {confirmDelete.prenom} {confirmDelete.nom}</p>
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2 mb-4">
+              Cette action supprimera aussi toutes les consultations, rendez-vous et certificats de ce médecin. Elle est irréversible.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={handleDelete} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 rounded-lg text-sm transition-colors">Supprimer définitivement</button>
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 btn-secondary">Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="card">
         {loading ? (
           <div className="text-center py-8 text-gray-400">Chargement...</div>
@@ -151,9 +184,10 @@ export default function MedecinsPage() {
                     <td className="py-3 px-3">
                       <div className="flex gap-2">
                         <button onClick={() => startEdit(doc)} className="text-primary-600 hover:text-primary-700 text-xs font-medium">Modifier</button>
-                        <button onClick={() => handleToggleActif(doc)} className={`text-xs font-medium ${doc.actif ? "text-red-500 hover:text-red-700" : "text-green-600 hover:text-green-700"}`}>
+                        <button onClick={() => handleToggleActif(doc)} className={`text-xs font-medium ${doc.actif ? "text-orange-500 hover:text-orange-700" : "text-green-600 hover:text-green-700"}`}>
                           {doc.actif ? "Désactiver" : "Activer"}
                         </button>
+                        <button onClick={() => setConfirmDelete(doc)} className="text-red-500 hover:text-red-700 text-xs font-medium">Supprimer</button>
                       </div>
                     </td>
                   </tr>

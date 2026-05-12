@@ -326,6 +326,140 @@ export function genererCertificat(opts: {
   doc.save(`Certificat_${certificat.type}_${patient.code}_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
+// ── RAPPORT CONSULTATIONS ─────────────────────────────────
+export function genererRapportConsultations(opts: {
+  etablissement: string;
+  total: number;
+  ageMoyen: number;
+  parSexe: { sexe: string; count: string }[];
+  diagnostics: { diagnostic: string; count: string }[];
+  parProfession: { profession: string; count: string }[];
+  parResidence: { residence: string; count: string }[];
+  dateDebut?: string | null;
+  dateFin?: string | null;
+}) {
+  const { etablissement, total, ageMoyen, parSexe, diagnostics, parProfession, parResidence, dateDebut, dateFin } = opts;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const w = doc.internal.pageSize.getWidth();
+
+  const periode = dateDebut && dateFin
+    ? `Période du ${new Date(dateDebut).toLocaleDateString('fr-FR')} au ${new Date(dateFin).toLocaleDateString('fr-FR')}`
+    : `Toutes les consultations — Généré le ${new Date().toLocaleDateString('fr-FR')}`;
+
+  addHeader(doc, etablissement, 'RAPPORT ÉPIDÉMIOLOGIQUE DES CONSULTATIONS', periode);
+
+  let y = 36;
+
+  // ── Indicateurs clés ────────────────────────────────────
+  const masculin  = parSexe.find(s => s.sexe === 'M');
+  const feminin   = parSexe.find(s => s.sexe === 'F');
+  const totalSexe = parSexe.reduce((a, s) => a + Number(s.count), 0);
+  const pctM = totalSexe > 0 ? Math.round(Number(masculin?.count ?? 0) / totalSexe * 100) : 0;
+  const pctF = totalSexe > 0 ? Math.round(Number(feminin?.count ?? 0) / totalSexe * 100) : 0;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...GREEN);
+  doc.text('INDICATEURS CLÉS', 14, y);
+  y += 4;
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Indicateur', 'Valeur']],
+    body: [
+      ['Nombre total de consultations', String(total)],
+      ['Âge moyen des patients', ageMoyen > 0 ? `${ageMoyen} ans` : 'N/D'],
+      ['Patients masculins', `${masculin?.count ?? 0} (${pctM}%)`],
+      ['Patientes féminines', `${feminin?.count ?? 0} (${pctF}%)`],
+    ],
+    styles: { fontSize: 9.5, cellPadding: 3.5, textColor: GRAY_DARK },
+    headStyles: { fillColor: GREEN, textColor: WHITE, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: GREEN_LIGHT },
+    columnStyles: { 0: { cellWidth: 100, fontStyle: 'bold' }, 1: { halign: 'center' } },
+    margin: { left: 14, right: 14 },
+    theme: 'grid',
+  });
+  y = (doc as any).lastAutoTable.finalY + 8;
+
+  // ── Principaux diagnostics ───────────────────────────────
+  if (diagnostics.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...TEAL);
+    doc.text('PRINCIPAUX DIAGNOSTICS', 14, y);
+    y += 4;
+
+    autoTable(doc, {
+      startY: y,
+      head: [['#', 'Diagnostic', 'Nb de cas']],
+      body: diagnostics.map((d, i) => [String(i + 1), d.diagnostic, d.count]),
+      styles: { fontSize: 9, cellPadding: 3, textColor: GRAY_DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: TEAL_LIGHT },
+      columnStyles: { 0: { cellWidth: 10 }, 2: { halign: 'center', cellWidth: 22 } },
+      margin: { left: 14, right: 14 },
+      theme: 'grid',
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // ── Distribution par profession ──────────────────────────
+  if (parProfession.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...GREEN);
+    doc.text('DISTRIBUTION PAR PROFESSION', 14, y);
+    y += 4;
+
+    const totalProf = parProfession.reduce((a, p) => a + Number(p.count), 0);
+    autoTable(doc, {
+      startY: y,
+      head: [['Profession', 'Nb patients', '%']],
+      body: parProfession.map(p => [
+        p.profession,
+        p.count,
+        `${Math.round(Number(p.count) / totalProf * 100)}%`,
+      ]),
+      styles: { fontSize: 9, cellPadding: 3, textColor: GRAY_DARK },
+      headStyles: { fillColor: GREEN, textColor: WHITE, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: GREEN_LIGHT },
+      columnStyles: { 1: { halign: 'center', cellWidth: 28 }, 2: { halign: 'center', cellWidth: 18 } },
+      margin: { left: 14, right: 14 },
+      theme: 'grid',
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // ── Distribution par provenance ──────────────────────────
+  if (parResidence.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...TEAL);
+    doc.text('DISTRIBUTION PAR PROVENANCE', 14, y);
+    y += 4;
+
+    const totalRes = parResidence.reduce((a, r) => a + Number(r.count), 0);
+    autoTable(doc, {
+      startY: y,
+      head: [['Provenance / Résidence', 'Nb patients', '%']],
+      body: parResidence.map(r => [
+        r.residence,
+        r.count,
+        `${Math.round(Number(r.count) / totalRes * 100)}%`,
+      ]),
+      styles: { fontSize: 9, cellPadding: 3, textColor: GRAY_DARK },
+      headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: TEAL_LIGHT },
+      columnStyles: { 1: { halign: 'center', cellWidth: 28 }, 2: { halign: 'center', cellWidth: 18 } },
+      margin: { left: 14, right: 14 },
+      theme: 'grid',
+    });
+  }
+
+  addFooter(doc, etablissement);
+  doc.save(`Rapport_Consultations_${new Date().toISOString().split('T')[0]}.pdf`);
+}
+
 // ── RAPPORT RECETTES ──────────────────────────────────────
 export function genererRapportRecettes(opts: {
   etablissement: string;

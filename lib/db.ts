@@ -61,11 +61,15 @@ export async function initDb() {
       sexe TEXT DEFAULT 'M',
       telephone TEXT,
       adresse TEXT,
+      profession TEXT,
+      residence TEXT,
       password TEXT NOT NULL,
       decede INTEGER DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `;
+  await sql`ALTER TABLE patients ADD COLUMN IF NOT EXISTS profession TEXT`;
+  await sql`ALTER TABLE patients ADD COLUMN IF NOT EXISTS residence TEXT`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS consultations (

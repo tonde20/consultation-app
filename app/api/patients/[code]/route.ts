@@ -12,7 +12,7 @@ export async function GET(_: NextRequest, { params }: { params: { code: string }
 
   await initDb();
   const patient = await dbGet(
-    'SELECT id, code, nom, prenom, date_naissance, sexe, telephone, adresse, decede, created_at FROM patients WHERE code = $1',
+    'SELECT id, code, nom, prenom, date_naissance, sexe, telephone, adresse, profession, residence, decede, created_at FROM patients WHERE code = $1',
     [params.code]
   );
   if (!patient) return NextResponse.json({ error: 'Patient non trouvé' }, { status: 404 });
@@ -47,7 +47,7 @@ export async function PUT(req: NextRequest, { params }: { params: { code: string
   const data = await req.json();
   await initDb();
 
-  const allowed = ['nom', 'prenom', 'date_naissance', 'sexe', 'telephone', 'adresse'];
+  const allowed = ['nom', 'prenom', 'date_naissance', 'sexe', 'telephone', 'adresse', 'profession', 'residence'];
   const keys = Object.keys(data).filter(k => allowed.includes(k));
   const values = keys.map(k => data[k]);
   const fields = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');

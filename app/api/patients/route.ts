@@ -15,14 +15,14 @@ export async function GET(req: NextRequest) {
   let patients;
   if (search) {
     patients = await dbAll(
-      `SELECT id, code, nom, prenom, date_naissance, sexe, telephone, adresse, decede, created_at 
-       FROM patients WHERE nom ILIKE $1 OR prenom ILIKE $1 OR code ILIKE $1 
+      `SELECT id, code, nom, prenom, date_naissance, sexe, telephone, adresse, profession, residence, decede, created_at
+       FROM patients WHERE nom ILIKE $1 OR prenom ILIKE $1 OR code ILIKE $1
        ORDER BY decede ASC, nom ASC LIMIT 50`,
       [`%${search}%`]
     );
   } else {
     patients = await dbAll(
-      `SELECT id, code, nom, prenom, date_naissance, sexe, telephone, adresse, decede, created_at 
+      `SELECT id, code, nom, prenom, date_naissance, sexe, telephone, adresse, profession, residence, decede, created_at
        FROM patients ORDER BY decede ASC, nom ASC LIMIT 100`
     );
   }
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   if (!session || session.role === 'patient') {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
   }
-  const { nom, prenom, date_naissance, sexe, telephone, adresse, password } = await req.json();
+  const { nom, prenom, date_naissance, sexe, telephone, adresse, profession, residence, password } = await req.json();
   if (!nom || !prenom) {
     return NextResponse.json({ error: 'Nom et prénom requis' }, { status: 400 });
   }
@@ -43,9 +43,9 @@ export async function POST(req: NextRequest) {
   const hashedPwd = bcrypt.hashSync(password || code, 10);
   try {
     const result = await dbGet(
-      `INSERT INTO patients (code, nom, prenom, date_naissance, sexe, telephone, adresse, password) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-      [code, nom, prenom, date_naissance || null, sexe || 'M', telephone || null, adresse || null, hashedPwd]
+      `INSERT INTO patients (code, nom, prenom, date_naissance, sexe, telephone, adresse, profession, residence, password)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [code, nom, prenom, date_naissance || null, sexe || 'M', telephone || null, adresse || null, profession || null, residence || null, hashedPwd]
     );
     return NextResponse.json({ id: result.id, code, success: true });
   } catch (e: any) {

@@ -11,16 +11,21 @@ interface Patient {
   sexe: string;
   telephone: string;
   adresse: string;
+  profession?: string;
+  residence?: string;
   decede?: number;
 }
+
+const emptyForm = { nom: "", prenom: "", date_naissance: "", sexe: "M", telephone: "", adresse: "", profession: "", residence: "" };
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ nom: "", prenom: "", date_naissance: "", sexe: "M", telephone: "", adresse: "" });
+  const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState({ type: "", text: "" });
+  const [confirmDelete, setConfirmDelete] = useState<Patient | null>(null);
 
   const fetchPatients = (q = "") => {
     setLoading(true);
@@ -38,10 +43,24 @@ export default function PatientsPage() {
     if (res.ok) {
       setMessage({ type: "success", text: `Patient créé. Code: ${data.code} — Mot de passe: ${data.code}` });
       setShowForm(false);
-      setForm({ nom: "", prenom: "", date_naissance: "", sexe: "M", telephone: "", adresse: "" });
+      setForm(emptyForm);
       fetchPatients();
     } else {
       setMessage({ type: "error", text: data.error || "Erreur" });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    const res = await fetch(`/api/patients/${confirmDelete.code}`, { method: "DELETE" });
+    if (res.ok) {
+      setMessage({ type: "success", text: `Patient ${confirmDelete.prenom} ${confirmDelete.nom} supprimé.` });
+      setConfirmDelete(null);
+      fetchPatients(search);
+    } else {
+      const data = await res.json();
+      setMessage({ type: "error", text: data.error || "Erreur lors de la suppression" });
+      setConfirmDelete(null);
     }
   };
 
@@ -66,6 +85,7 @@ export default function PatientsPage() {
       {message.text && (
         <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${message.type === "success" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
           {message.text}
+          <button onClick={() => setMessage({ type: "", text: "" })} className="ml-3 font-bold">×</button>
         </div>
       )}
 
@@ -75,9 +95,10 @@ export default function PatientsPage() {
         {search && <button type="button" onClick={() => { setSearch(""); fetchPatients(""); }} className="btn-secondary">Réinitialiser</button>}
       </form>
 
+      {/* Modal création */}
       {showForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="font-semibold text-gray-800 mb-4">Nouveau patient</h2>
             <form onSubmit={handleAddPatient} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -108,15 +129,43 @@ export default function PatientsPage() {
                 <input type="text" value={form.telephone} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))} className="input-field" />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Profession</label>
+                <input type="text" value={form.profession} onChange={e => setForm(f => ({ ...f, profession: e.target.value }))} className="input-field" placeholder="Ex: Agriculteur, Commerçant..." />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Résidence / Provenance</label>
+                <input type="text" value={form.residence} onChange={e => setForm(f => ({ ...f, residence: e.target.value }))} className="input-field" placeholder="Ex: Boromo, Dédougou..." />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
                 <input type="text" value={form.adresse} onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))} className="input-field" />
               </div>
               <p className="text-xs text-gray-400">Le code patient et le mot de passe initial seront générés automatiquement.</p>
               <div className="flex gap-3 pt-2">
                 <button type="submit" className="btn-primary flex-1">Créer le patient</button>
-                <button type="button" onClick={() => setShowForm(false)} className="btn-secondary flex-1">Annuler</button>
+                <button type="button" onClick={() => { setShowForm(false); setForm(emptyForm); }} className="btn-secondary flex-1">Annuler</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmation suppression */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="font-semibold text-red-700 mb-2">Confirmer la suppression</h2>
+            <p className="text-gray-600 text-sm mb-1">
+              Vous allez supprimer définitivement le patient :
+            </p>
+            <p className="font-bold text-gray-800 mb-1">{confirmDelete.prenom} {confirmDelete.nom} — <span className="font-mono text-xs">{confirmDelete.code}</span></p>
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2 mb-4">
+              Cette action supprimera aussi toutes ses consultations, rendez-vous, certificats et paiements. Elle est irréversible.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={handleDelete} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 rounded-lg text-sm transition-colors">Supprimer définitivement</button>
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 btn-secondary">Annuler</button>
+            </div>
           </div>
         </div>
       )}
@@ -133,6 +182,8 @@ export default function PatientsPage() {
                   <th className="text-left py-3 px-3 text-gray-500 font-medium">Nom complet</th>
                   <th className="text-left py-3 px-3 text-gray-500 font-medium">Naissance</th>
                   <th className="text-left py-3 px-3 text-gray-500 font-medium">Sexe</th>
+                  <th className="text-left py-3 px-3 text-gray-500 font-medium">Profession</th>
+                  <th className="text-left py-3 px-3 text-gray-500 font-medium">Résidence</th>
                   <th className="text-left py-3 px-3 text-gray-500 font-medium">Téléphone</th>
                   <th className="text-left py-3 px-3 text-gray-500 font-medium">Actions</th>
                 </tr>
@@ -151,14 +202,19 @@ export default function PatientsPage() {
                     </td>
                     <td className="py-3 px-3 text-gray-500">{p.date_naissance ? new Date(p.date_naissance).toLocaleDateString("fr-FR") : "—"}</td>
                     <td className="py-3 px-3 text-gray-500">{p.sexe === "M" ? "Masc." : "Fém."}</td>
+                    <td className="py-3 px-3 text-gray-500">{p.profession || "—"}</td>
+                    <td className="py-3 px-3 text-gray-500">{p.residence || "—"}</td>
                     <td className="py-3 px-3 text-gray-500">{p.telephone || "—"}</td>
                     <td className="py-3 px-3">
-                      <Link href={`/medecin/patient/${p.code}`} className="text-primary-600 hover:text-primary-700 text-xs font-medium">Voir dossier</Link>
+                      <div className="flex gap-3">
+                        <Link href={`/medecin/patient/${p.code}`} className="text-primary-600 hover:text-primary-700 text-xs font-medium">Dossier</Link>
+                        <button onClick={() => setConfirmDelete(p)} className="text-red-500 hover:text-red-700 text-xs font-medium">Supprimer</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
                 {patients.length === 0 && (
-                  <tr><td colSpan={6} className="py-8 text-center text-gray-400">Aucun patient trouvé</td></tr>
+                  <tr><td colSpan={8} className="py-8 text-center text-gray-400">Aucun patient trouvé</td></tr>
                 )}
               </tbody>
             </table>

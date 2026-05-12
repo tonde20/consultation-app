@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initDb, dbRun } from '@/lib/db';
+import { initDb, dbRun, dbAll } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
@@ -33,6 +33,31 @@ export async function DELETE(_: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
   }
   await initDb();
-  await dbRun('UPDATE doctors SET actif = 0 WHERE id = $1', [params.id]);
+  const id = params.id;
+
+  const consultIds = await dbAll(
+    'SELECT id FROM consultations WHERE doctor_id = $1', [id]
+  ) as { id: number }[];
+  const cids = consultIds.map(c => c.id);
+
+  if (cids.length > 0) {
+    await dbRun(`DELETE FROM prescriptions WHERE consultation_id = ANY($1::int[])`, [cids]);
+    await dbRun(`DELETE FROM examens WHERE consultation_id = ANY($1::int[])`, [cids]);
+    await dbRun(`DELETE FROM paiements WHERE type = 'consultation' AND reference_id = ANY($1::int[])`, [cids]);
+  }
+
+  const certifIds = await dbAll(
+    'SELECT id FROM certificats WHERE doctor_id = $1', [id]
+  ) as { id: number }[];
+  const certIds = certifIds.map(c => c.id);
+  if (certIds.length > 0) {
+    await dbRun(`DELETE FROM paiements WHERE type = 'certificat' AND reference_id = ANY($1::int[])`, [certIds]);
+  }
+
+  await dbRun('DELETE FROM certificats WHERE doctor_id = $1', [id]);
+  await dbRun('DELETE FROM rendez_vous WHERE doctor_id = $1', [id]);
+  await dbRun('DELETE FROM consultations WHERE doctor_id = $1', [id]);
+  await dbRun('DELETE FROM doctors WHERE id = $1', [id]);
+
   return NextResponse.json({ success: true });
 }
