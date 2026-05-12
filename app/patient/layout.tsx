@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { getDb } from "@/lib/db";
+import { initDb, dbAll } from "@/lib/db";
 import PatientSidebarWrapper from "./PatientSidebarWrapper";
 
-export default function PatientLayout({ children }: { children: React.ReactNode }) {
+export default async function PatientLayout({ children }: { children: React.ReactNode }) {
   const session = getSession();
   if (!session || session.role !== "patient") redirect("/login");
 
-  const db = getDb();
-  const settings = db.prepare("SELECT key, value FROM settings").all() as { key: string; value: string }[];
+  await initDb();
+  const settings = await dbAll("SELECT key, value FROM settings") as { key: string; value: string }[];
   const settingsMap: Record<string, string> = {};
   settings.forEach(s => { settingsMap[s.key] = s.value; });
   const etablissement = settingsMap.etablissement_nom || "CMA de Boromo";

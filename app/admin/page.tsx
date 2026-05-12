@@ -1,4 +1,4 @@
-import { getDb } from "@/lib/db";
+import { initDb, dbGet, dbAll } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 function StatCard({ title, value, subtitle, color }: { title: string; value: string | number; subtitle?: string; color: string }) {
@@ -11,25 +11,26 @@ function StatCard({ title, value, subtitle, color }: { title: string; value: str
   );
 }
 
-export default function AdminDashboard() {
-  const db = getDb();
+export default async function AdminDashboard() {
+  await initDb();
   const today = new Date().toISOString().split("T")[0];
+  const currentMonth = new Date().toISOString().slice(0, 7);
 
-  const totalPatients = (db.prepare("SELECT COUNT(*) as c FROM patients").get() as any).c;
-  const totalDoctors = (db.prepare("SELECT COUNT(*) as c FROM doctors WHERE actif = 1").get() as any).c;
-  const consultationsToday = (db.prepare("SELECT COUNT(*) as c FROM consultations WHERE date(date) = ?").get(today) as any).c;
-  const recettesToday = (db.prepare("SELECT COALESCE(SUM(montant), 0) as total FROM paiements WHERE date(date) = ?").get(today) as any).total;
-  const rdvEnAttente = (db.prepare("SELECT COUNT(*) as c FROM rendez_vous WHERE statut = 'en_attente'").get() as any).c;
-  const recetteMois = (db.prepare("SELECT COALESCE(SUM(montant), 0) as total FROM paiements WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now')").get() as any).total;
+  const totalPatients = (await dbGet("SELECT COUNT(*) as c FROM patients")).c;
+  const totalDoctors = (await dbGet("SELECT COUNT(*) as c FROM doctors WHERE actif = 1")).c;
+  const consultationsToday = (await dbGet("SELECT COUNT(*) as c FROM consultations WHERE date::date = $1", [today])).c;
+  const recettesToday = (await dbGet("SELECT COALESCE(SUM(montant), 0) as total FROM paiements WHERE date::date = $1", [today])).total;
+  const rdvEnAttente = (await dbGet("SELECT COUNT(*) as c FROM rendez_vous WHERE statut = 'en_attente'")).c;
+  const recetteMois = (await dbGet("SELECT COALESCE(SUM(montant), 0) as total FROM paiements WHERE TO_CHAR(date::timestamp, 'YYYY-MM') = $1", [currentMonth])).total;
 
-  const recentConsultations = db.prepare(`
+  const recentConsultations = await dbAll(`
     SELECT c.date, p.nom as patient_nom, p.prenom as patient_prenom, p.code as patient_code,
            d.nom as doctor_nom, d.prenom as doctor_prenom
     FROM consultations c
     JOIN patients p ON c.patient_id = p.id
     JOIN doctors d ON c.doctor_id = d.id
     ORDER BY c.date DESC LIMIT 8
-  `).all() as any[];
+  `) as any[];
 
   return (
     <div className="p-8">
@@ -40,8 +41,8 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <StatCard title="Consultations aujourd'hui" value={consultationsToday} color="text-primary-600" />
-        <StatCard title="Recettes du jour" value={`${recettesToday.toLocaleString()} FCFA`} color="text-teal-600" />
-        <StatCard title="Recettes du mois" value={`${recetteMois.toLocaleString()} FCFA`} color="text-primary-700" />
+        <StatCard title="Recettes du jour" value={`${Number(recettesToday).toLocaleString()} FCFA`} color="text-teal-600" />
+        <StatCard title="Recettes du mois" value={`${Number(recetteMois).toLocaleString()} FCFA`} color="text-primary-700" />
         <StatCard title="Total patients" value={totalPatients} subtitle="enregistrés" color="text-blue-600" />
         <StatCard title="Médecins actifs" value={totalDoctors} color="text-primary-600" />
         <StatCard title="RDV en attente" value={rdvEnAttente} color="text-yellow-600" />

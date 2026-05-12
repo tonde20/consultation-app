@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { getDb } from "@/lib/db";
+import { initDb, dbGet } from "@/lib/db";
 import Link from "next/link";
 import LogoCMA from "@/app/components/LogoCMA";
 
-export default function HomePage() {
+export default async function HomePage() {
   const session = getSession();
   if (session) {
     if (session.role === "admin")   redirect("/admin");
@@ -14,8 +14,8 @@ export default function HomePage() {
 
   let etablissement = "CMA de Boromo";
   try {
-    const db = getDb();
-    const s = db.prepare("SELECT value FROM settings WHERE key = 'etablissement_nom'").get() as any;
+    await initDb();
+    const s = await dbGet("SELECT value FROM settings WHERE key = $1", ['etablissement_nom']);
     if (s?.value) etablissement = s.value;
   } catch {}
 
