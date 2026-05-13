@@ -284,10 +284,13 @@ export function genererCertificat(opts: {
     for (const sub of subLines) {
       if (!sub.trim()) { y += lineH * 0.6; continue; }
       const wrapped = doc.splitTextToSize(sub.trim(), cw);
-      doc.text(wrapped, ml, y, { align: 'justify', maxWidth: cw });
-      y += wrapped.length * lineH;
+      for (let li = 0; li < wrapped.length; li++) {
+        const isLast = li === wrapped.length - 1;
+        doc.text(wrapped[li], ml, y, { align: isLast ? 'left' : 'justify', maxWidth: cw });
+        y += lineH;
+      }
     }
-    if (pi < paragraphs.length - 1) y += lineH * 0.9;
+    if (pi < paragraphs.length - 1) y += lineH * 0.5;
   }
 
   // ── Zone signature — ancrée vers le bas de page ───────────
@@ -732,8 +735,10 @@ export function genererCertificatVisite(opts: {
   ];
   for (const line of visiteLines) {
     const wrapped = doc.splitTextToSize(line, cw);
-    doc.text(wrapped, ml, y, { align: 'justify', maxWidth: cw });
-    y += wrapped.length * lineH;
+    for (let li = 0; li < wrapped.length; li++) {
+      doc.text(wrapped[li], ml, y, { align: li === wrapped.length - 1 ? 'left' : 'justify', maxWidth: cw });
+      y += lineH;
+    }
   }
 
   // Date + signature section 1
@@ -797,8 +802,10 @@ export function genererCertificatVisite(opts: {
   ];
   for (const line of contreLines) {
     const wrapped = doc.splitTextToSize(line, cw);
-    doc.text(wrapped, ml, y, { align: 'justify', maxWidth: cw });
-    y += wrapped.length * lineH;
+    for (let li = 0; li < wrapped.length; li++) {
+      doc.text(wrapped[li], ml, y, { align: li === wrapped.length - 1 ? 'left' : 'justify', maxWidth: cw });
+      y += lineH;
+    }
   }
 
   // Date + signature section 2
