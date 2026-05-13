@@ -245,35 +245,35 @@ export function genererCertificat(opts: {
   const doc = new jsPDF('p', 'mm', 'a4');
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
-  const ml = 22;
-  const cw = w - ml * 2;
+  const ml = 25;           // marges latérales larges
+  const cw = w - ml * 2;  // ≈ 161 mm
 
-  // ── En-tête établissement ────────────────────────────────
+  // ── En-tête établissement ─────────────────────────────────
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
+  doc.setFontSize(14);
   doc.setTextColor(...GRAY_DARK);
-  doc.text(etablissement.toUpperCase(), w / 2, 18, { align: 'center' });
-  doc.setDrawColor(...GRAY_MID);
-  doc.setLineWidth(0.5);
-  doc.line(ml, 23, w - ml, 23);
+  doc.text(etablissement.toUpperCase(), w / 2, 22, { align: 'center' });
+  doc.setDrawColor(...GRAY_DARK);
+  doc.setLineWidth(0.7);
+  doc.line(ml, 28, w - ml, 28);
 
-  // ── Titre du certificat ──────────────────────────────────
+  // ── Titre centré et souligné ──────────────────────────────
   const titre = `CERTIFICAT ${certificat.type.toUpperCase()}`;
   doc.setFont('times', 'bold');
-  doc.setFontSize(14);
+  doc.setFontSize(15);
   doc.setTextColor(...GRAY_DARK);
   const titreW = doc.getTextWidth(titre);
   const titreX = (w - titreW) / 2;
-  const titreY = 38;
+  const titreY = 56;   // grand espace sous la ligne de tête
   doc.text(titre, titreX, titreY);
-  doc.setLineWidth(0.5);
+  doc.setLineWidth(0.55);
   doc.setDrawColor(...GRAY_DARK);
-  doc.line(titreX, titreY + 1.5, titreX + titreW, titreY + 1.5);
+  doc.line(titreX, titreY + 2, titreX + titreW, titreY + 2);
 
   // ── Corps du certificat ───────────────────────────────────
-  let y = 56;
-  const fontSize = 11.5;
-  const lineH = fontSize * 0.352778 * 1.75; // ≈ 7.1 mm — interligne généreux
+  let y = 82;                                  // départ corps — espace généreux après titre
+  const fontSize = 12;
+  const lineH = 9.8;                           // interligne très aéré (~2.3× la hauteur de police)
   doc.setFont('times', 'normal');
   doc.setFontSize(fontSize);
   doc.setTextColor(...GRAY_DARK);
@@ -282,45 +282,46 @@ export function genererCertificat(opts: {
   for (let pi = 0; pi < paragraphs.length; pi++) {
     const subLines = paragraphs[pi].trim().split('\n');
     for (const sub of subLines) {
-      if (!sub.trim()) { y += lineH * 0.5; continue; }
+      if (!sub.trim()) { y += lineH * 0.6; continue; }
       const wrapped = doc.splitTextToSize(sub.trim(), cw);
       doc.text(wrapped, ml, y, { align: 'justify', maxWidth: cw });
       y += wrapped.length * lineH;
     }
-    if (pi < paragraphs.length - 1) y += lineH * 0.8;
+    if (pi < paragraphs.length - 1) y += lineH * 0.9;
   }
 
-  // ── Lieu et date ─────────────────────────────────────────
-  const dateStr = new Date(certificat.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
-  let sigZoneY = Math.max(y + 18, h - 68);
+  // ── Zone signature — ancrée vers le bas de page ───────────
+  const dateStr = new Date(certificat.date).toLocaleDateString('fr-FR', {
+    day: '2-digit', month: 'long', year: 'numeric',
+  });
+  let sigY = Math.max(y + 30, h - 68);
 
   doc.setFont('times', 'normal');
-  doc.setFontSize(11);
+  doc.setFontSize(12);
   doc.setTextColor(...GRAY_DARK);
-  doc.text(`Fait à Boromo, le ${dateStr}`, w - ml, sigZoneY, { align: 'right' });
-
-  sigZoneY += 8;
+  doc.text(`Fait à Boromo, le ${dateStr}`, w - ml, sigY, { align: 'right' });
+  sigY += 10;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text('Le Médecin', w - ml, sigZoneY, { align: 'right' });
-  sigZoneY += 6;
+  doc.text('Le Médecin', w - ml, sigY, { align: 'right' });
+  sigY += 7;
 
   if (signatureImg) {
-    doc.addImage(signatureImg, 'PNG', w - ml - 66, sigZoneY, 66, 18);
-    sigZoneY += 20;
+    doc.addImage(signatureImg, 'PNG', w - ml - 66, sigY, 66, 18);
+    sigY += 20;
   } else {
-    sigZoneY += 18;
+    sigY += 20;
   }
   doc.setDrawColor(...GRAY_MID);
   doc.setLineWidth(0.4);
-  doc.line(w - ml - 66, sigZoneY, w - ml, sigZoneY);
+  doc.line(w - ml - 66, sigY, w - ml, sigY);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...GRAY_MID);
-  doc.text(`Dr. ${certificat.doctor_prenom} ${certificat.doctor_nom}`, w - ml - 33, sigZoneY + 5, { align: 'center' });
-  doc.text('Signature et cachet', w - ml - 33, sigZoneY + 10, { align: 'center' });
+  doc.text(`Dr. ${certificat.doctor_prenom} ${certificat.doctor_nom}`, w - ml - 33, sigY + 5, { align: 'center' });
+  doc.text('Signature et cachet', w - ml - 33, sigY + 10, { align: 'center' });
 
-  // ── Pied de page ─────────────────────────────────────────
+  // ── Pied de page minimal ──────────────────────────────────
   doc.setLineWidth(0.2);
   doc.setDrawColor(...BORDER);
   doc.line(ml, h - 12, w - ml, h - 12);
@@ -682,39 +683,38 @@ export function genererCertificatVisite(opts: {
   const doc = new jsPDF('p', 'mm', 'a4');
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
-  const ml = 22;
+  const ml = 24;
   const cw = w - ml * 2;
   const dateJour = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
   const dateFile = new Date().toISOString().split('T')[0];
   const dateNaissance = patient.date_naissance
     ? new Date(patient.date_naissance).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
     : '—';
-  const lineH = 11 * 0.352778 * 1.7; // ≈ 6.6 mm
+  const lineH = 8.0;   // interligne fixe en mm — aéré mais deux sections tiennent sur la page
 
-  // ── En-tête établissement ────────────────────────────────
+  // ── En-tête établissement ─────────────────────────────────
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.setTextColor(...GRAY_DARK);
-  doc.text(etablissement.toUpperCase(), w / 2, 14, { align: 'center' });
-  doc.setDrawColor(...GRAY_MID);
-  doc.setLineWidth(0.4);
-  doc.line(ml, 18, w - ml, 18);
+  doc.text(etablissement.toUpperCase(), w / 2, 18, { align: 'center' });
+  doc.setDrawColor(...GRAY_DARK);
+  doc.setLineWidth(0.7);
+  doc.line(ml, 24, w - ml, 24);
 
-  let y = 28;
+  let y = 38;
 
   // ── SECTION 1 : VISITE MÉDICALE ───────────────────────────
-  // Titre encadré simple
   const titre1 = 'CERTIFICAT DE VISITE MÉDICALE';
   doc.setFont('times', 'bold');
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.setTextColor(...GRAY_DARK);
   const t1W = doc.getTextWidth(titre1);
   const t1X = (w - t1W) / 2;
   doc.text(titre1, t1X, y);
-  doc.setLineWidth(0.4);
+  doc.setLineWidth(0.5);
   doc.setDrawColor(...GRAY_DARK);
-  doc.line(t1X, y + 1.5, t1X + t1W, y + 1.5);
-  y += 12;
+  doc.line(t1X, y + 2, t1X + t1W, y + 2);
+  y += 14;
 
   doc.setFont('times', 'normal');
   doc.setFontSize(11);
@@ -727,7 +727,7 @@ export function genererCertificatVisite(opts: {
     `Né(e) le ${dateNaissance}`,
     `Ne présente actuellement aucune infection contagieuse cliniquement et radiologiquement décelable et il(elle) est indemne de toute infection tuberculose, cancéreuse, nerveuse ou lépreuse.`,
     `Radio : ${visite.radio}     B.W : ${visite.bw}`,
-    `Acuité visuelle sans correction :  OD ${visite.acuite_od || '—'}     OG ${visite.acuite_og || '—'}     Bégaiement : ${visite.begaiement}     Surdité : ${visite.surdite}`,
+    `Acuité visuelle sans correction — OD : ${visite.acuite_od || '—'}  OG : ${visite.acuite_og || '—'}  Bégaiement : ${visite.begaiement}  Surdité : ${visite.surdite}`,
     `En conséquence, estimons qu'il/elle est apte ${visite.apte_pour}`,
   ];
   for (const line of visiteLines) {
@@ -736,21 +736,22 @@ export function genererCertificatVisite(opts: {
     y += wrapped.length * lineH;
   }
 
-  // Date + signature visite
-  y += 4;
+  // Date + signature section 1
+  y += 6;
   doc.setFont('times', 'normal');
   doc.setFontSize(11);
+  doc.setTextColor(...GRAY_DARK);
   doc.text(`Fait à Boromo, le ${dateJour}`, w - ml, y, { align: 'right' });
-  y += 7;
+  y += 8;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text('Le Médecin', w - ml, y, { align: 'right' });
-  y += 5;
+  y += 6;
   if (signatureImg) {
     doc.addImage(signatureImg, 'PNG', w - ml - 66, y, 66, 18);
     y += 20;
   } else {
-    y += 16;
+    y += 18;
   }
   doc.setDrawColor(...GRAY_MID);
   doc.setLineWidth(0.4);
@@ -761,28 +762,28 @@ export function genererCertificatVisite(opts: {
   doc.text(`Dr. ${visite.doctor_prenom} ${visite.doctor_nom}`, w - ml - 33, y + 5, { align: 'center' });
   doc.text('Signature et cachet', w - ml - 33, y + 10, { align: 'center' });
   doc.setTextColor(...GRAY_DARK);
-  y += 18;
+  y += 16;
 
   // ── Séparateur tirets ─────────────────────────────────────
   doc.setDrawColor(...GRAY_MID);
   doc.setLineWidth(0.4);
-  doc.setLineDashPattern([4, 3], 0);
+  doc.setLineDashPattern([5, 3], 0);
   doc.line(ml, y, w - ml, y);
   doc.setLineDashPattern([], 0);
-  y += 10;
+  y += 12;
 
   // ── SECTION 2 : CONTRE-VISITE ─────────────────────────────
   const titre2 = 'CERTIFICAT DE CONTRE-VISITE MÉDICALE';
   doc.setFont('times', 'bold');
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.setTextColor(...GRAY_DARK);
   const t2W = doc.getTextWidth(titre2);
   const t2X = (w - t2W) / 2;
   doc.text(titre2, t2X, y);
-  doc.setLineWidth(0.4);
+  doc.setLineWidth(0.5);
   doc.setDrawColor(...GRAY_DARK);
-  doc.line(t2X, y + 1.5, t2X + t2W, y + 1.5);
-  y += 12;
+  doc.line(t2X, y + 2, t2X + t2W, y + 2);
+  y += 14;
 
   doc.setFont('times', 'normal');
   doc.setFontSize(11);
@@ -800,16 +801,17 @@ export function genererCertificatVisite(opts: {
     y += wrapped.length * lineH;
   }
 
-  // Date + signature contre-visite
-  y += 4;
+  // Date + signature section 2
+  y += 6;
   doc.setFont('times', 'normal');
   doc.setFontSize(11);
+  doc.setTextColor(...GRAY_DARK);
   doc.text(`Fait à Boromo, le ${dateJour}`, w - ml, y, { align: 'right' });
-  y += 7;
+  y += 8;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text('Le Médecin', w - ml, y, { align: 'right' });
-  y += 21;
+  y += 24;
   doc.setDrawColor(...GRAY_MID);
   doc.setLineWidth(0.4);
   doc.line(w - ml - 66, y, w - ml, y);
