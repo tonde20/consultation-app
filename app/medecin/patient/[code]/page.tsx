@@ -84,27 +84,81 @@ export default function PatientDossierPage() {
   const [editingAntecedents, setEditingAntecedents] = useState(false);
   const [antForm, setAntForm] = useState({ antecedents_medicaux: "", antecedents_chirurgicaux: "" });
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      const [patRes, settRes, docRes] = await Promise.all([
-        fetch(`/api/patients/${code}`),
-        fetch("/api/settings"),
-        fetch("/api/doctors"),
-      ]);
-      if (patRes.ok) {
-        const patData = await patRes.json();
-        setData(patData);
-        setAntForm({
-          antecedents_medicaux: patData.patient?.antecedents_medicaux || "",
-          antecedents_chirurgicaux: patData.patient?.antecedents_chirurgicaux || "",
-        });
-      }
-      if (settRes.ok) { const s = await settRes.json(); if (s.etablissement_nom) setEtablissement(s.etablissement_nom); }
-      if (docRes.ok) setDoctors(await docRes.json());
-      setLoading(false);
-    };
-    fetchAll();
-  }, [code]);
+  const [editModal, setEditModal] = useState<Consultation | null>(null);
+  const [editForm, setEditForm] = useState({
+    motif: "", examen_physique: "", diagnostic: "", notes: "",
+    tension: "", temperature: "", pouls: "", poids: "", taille: "",
+    prescriptions: [{ medicament: "", posologie: "", duree: "" }],
+    examens: [{ categorie: "autres", type_examen: "", resultat: "" }],
+  });
+  const [editLoading, setEditLoading] = useState(false);
+
+  const loadData = async () => {
+    const [patRes, settRes, docRes] = await Promise.all([
+      fetch(`/api/patients/${code}`),
+      fetch("/api/settings"),
+      fetch("/api/doctors"),
+    ]);
+    if (patRes.ok) {
+      const patData = await patRes.json();
+      setData(patData);
+      setAntForm({
+        antecedents_medicaux: patData.patient?.antecedents_medicaux || "",
+        antecedents_chirurgicaux: patData.patient?.antecedents_chirurgicaux || "",
+      });
+    }
+    if (settRes.ok) { const s = await settRes.json(); if (s.etablissement_nom) setEtablissement(s.etablissement_nom); }
+    if (docRes.ok) setDoctors(await docRes.json());
+    setLoading(false);
+  };
+
+  useEffect(() => { loadData(); }, [code]);
+
+  const openEditModal = (c: Consultation) => {
+    setEditForm({
+      motif: c.motif || "",
+      examen_physique: c.examen_physique || "",
+      diagnostic: c.diagnostic || "",
+      notes: c.notes || "",
+      tension: c.tension || "",
+      temperature: c.temperature || "",
+      pouls: c.pouls || "",
+      poids: c.poids || "",
+      taille: c.taille || "",
+      prescriptions: c.prescriptions.length > 0
+        ? c.prescriptions.map(p => ({ medicament: p.medicament, posologie: p.posologie || "", duree: p.duree || "" }))
+        : [{ medicament: "", posologie: "", duree: "" }],
+      examens: c.examens.length > 0
+        ? c.examens.map(e => ({ categorie: e.categorie || "autres", type_examen: e.type_examen, resultat: e.resultat || "" }))
+        : [{ categorie: "autres", type_examen: "", resultat: "" }],
+    });
+    setEditModal(c);
+  };
+
+  const handleEditSave = async () => {
+    if (!editModal) return;
+    setEditLoading(true);
+    const res = await fetch(`/api/consultations/${editModal.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        full_update: true,
+        ...editForm,
+        prescriptions: editForm.prescriptions.filter(p => p.medicament),
+        examens: editForm.examens.filter(e => e.type_examen),
+      }),
+    });
+    setEditLoading(false);
+    if (res.ok) {
+      setEditModal(null);
+      setSelectedConsult(null);
+      await loadData();
+      setMessage({ type: "success", text: "Consultation mise à jour avec succès." });
+    } else {
+      const d = await res.json();
+      setMessage({ type: "error", text: d.error || "Erreur lors de la mise à jour" });
+    }
+  };
 
   const buildExamensPayload = () => {
     const list: { categorie: string; type_examen: string; description: string; resultat: string }[] = [];
@@ -441,6 +495,13 @@ export default function PatientDossierPage() {
               {selectedConsult.date_sortie && (
                 <span className="text-xs text-gray-500 self-center">Sorti le {new Date(selectedConsult.date_sortie).toLocaleDateString("fr-FR")} — {(selectedConsult.frais_hospitalisation || 0).toLocaleString()} FCFA</span>
               )}
+              <button
+                onClick={() => { openEditModal(selectedConsult); setSelectedConsult(null); }}
+                className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                Modifier
+              </button>
               <button onClick={() => setSelectedConsult(null)} className="btn-secondary text-sm ml-auto">Fermer</button>
             </div>
           </div>
@@ -488,6 +549,123 @@ export default function PatientDossierPage() {
                 {sortieLoading ? "Enregistrement..." : "Valider la sortie + Générer certificat"}
               </button>
               <button onClick={() => { setSortiModal(null); setDateSortie(""); }} className="btn-secondary">Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal édition consultation */}
+      {editModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-800 text-lg">Modifier la consultation</h3>
+                <p className="text-sm text-gray-500">{new Date(editModal.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}</p>
+              </div>
+              <button onClick={() => setEditModal(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+            </div>
+            <div className="overflow-y-auto p-5 space-y-5 flex-1">
+
+              {/* Constantes */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Constantes vitales</p>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {[
+                    { key: "tension", label: "Tension", placeholder: "120/80" },
+                    { key: "pouls", label: "Pouls (bpm)", placeholder: "72" },
+                    { key: "temperature", label: "Température (°C)", placeholder: "37.0" },
+                    { key: "poids", label: "Poids (kg)", placeholder: "70" },
+                    { key: "taille", label: "Taille (cm)", placeholder: "170" },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="block text-xs text-gray-500 mb-1">{f.label}</label>
+                      <input
+                        type="text"
+                        value={(editForm as any)[f.key]}
+                        onChange={e => setEditForm(ef => ({ ...ef, [f.key]: e.target.value }))}
+                        className="input-field text-sm"
+                        placeholder={f.placeholder}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Motif */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Motif de consultation</label>
+                <input type="text" value={editForm.motif} onChange={e => setEditForm(ef => ({ ...ef, motif: e.target.value }))} className="input-field" placeholder="Fièvre, toux, douleurs abdominales..." />
+              </div>
+
+              {/* Examen physique */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Éléments retrouvés à l'examen physique</label>
+                <textarea value={editForm.examen_physique} onChange={e => setEditForm(ef => ({ ...ef, examen_physique: e.target.value }))} className="input-field h-20 resize-none" placeholder="Signes retrouvés à l'examen clinique..." />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Notes / Observations</label>
+                <textarea value={editForm.notes} onChange={e => setEditForm(ef => ({ ...ef, notes: e.target.value }))} className="input-field h-16 resize-none" placeholder="Observations complémentaires..." />
+              </div>
+
+              {/* Examens */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Examens complémentaires</p>
+                  <button type="button" onClick={() => setEditForm(ef => ({ ...ef, examens: [...ef.examens, { categorie: "autres", type_examen: "", resultat: "" }] }))} className="text-xs text-teal-600 hover:text-teal-700 font-medium">+ Ajouter</button>
+                </div>
+                <div className="space-y-2">
+                  {editForm.examens.map((ex, i) => (
+                    <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                      <select
+                        value={ex.categorie}
+                        onChange={e => { const a = [...editForm.examens]; a[i].categorie = e.target.value; setEditForm(ef => ({ ...ef, examens: a })); }}
+                        className="input-field col-span-3 text-sm"
+                      >
+                        <option value="bilan_sanguin">Bilan sanguin</option>
+                        <option value="imagerie">Imagérie</option>
+                        <option value="autres">Autre</option>
+                      </select>
+                      <input type="text" value={ex.type_examen} onChange={e => { const a = [...editForm.examens]; a[i].type_examen = e.target.value; setEditForm(ef => ({ ...ef, examens: a })); }} className="input-field col-span-4 text-sm" placeholder="Nom de l'examen" />
+                      <input type="text" value={ex.resultat} onChange={e => { const a = [...editForm.examens]; a[i].resultat = e.target.value; setEditForm(ef => ({ ...ef, examens: a })); }} className="input-field col-span-4 text-sm" placeholder="Résultat (optionnel)" />
+                      <button type="button" onClick={() => setEditForm(ef => ({ ...ef, examens: ef.examens.filter((_, j) => j !== i) }))} className="text-red-400 hover:text-red-600 col-span-1 text-center text-lg">×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Diagnostic */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Diagnostic</label>
+                <input type="text" value={editForm.diagnostic} onChange={e => setEditForm(ef => ({ ...ef, diagnostic: e.target.value }))} className="input-field" placeholder="Paludisme simple, Pneumonie, HTA..." />
+              </div>
+
+              {/* Prescriptions */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Prescriptions médicamenteuses</p>
+                  <button type="button" onClick={() => setEditForm(ef => ({ ...ef, prescriptions: [...ef.prescriptions, { medicament: "", posologie: "", duree: "" }] }))} className="text-xs text-primary-600 hover:text-primary-700 font-medium">+ Ajouter</button>
+                </div>
+                <div className="space-y-2">
+                  {editForm.prescriptions.map((p, i) => (
+                    <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                      <input type="text" value={p.medicament} onChange={e => { const a = [...editForm.prescriptions]; a[i].medicament = e.target.value; setEditForm(ef => ({ ...ef, prescriptions: a })); }} className="input-field col-span-4 text-sm" placeholder="Médicament" />
+                      <input type="text" value={p.posologie} onChange={e => { const a = [...editForm.prescriptions]; a[i].posologie = e.target.value; setEditForm(ef => ({ ...ef, prescriptions: a })); }} className="input-field col-span-4 text-sm" placeholder="Posologie" />
+                      <input type="text" value={p.duree} onChange={e => { const a = [...editForm.prescriptions]; a[i].duree = e.target.value; setEditForm(ef => ({ ...ef, prescriptions: a })); }} className="input-field col-span-3 text-sm" placeholder="Durée" />
+                      <button type="button" onClick={() => setEditForm(ef => ({ ...ef, prescriptions: ef.prescriptions.filter((_, j) => j !== i) }))} className="text-red-400 hover:text-red-600 col-span-1 text-center text-lg">×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+            <div className="p-4 border-t border-gray-100 flex gap-3 bg-gray-50 rounded-b-2xl">
+              <button onClick={handleEditSave} disabled={editLoading} className="btn-primary flex-1">
+                {editLoading ? "Enregistrement..." : "Enregistrer les modifications"}
+              </button>
+              <button onClick={() => setEditModal(null)} className="btn-secondary">Annuler</button>
             </div>
           </div>
         </div>

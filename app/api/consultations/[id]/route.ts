@@ -56,15 +56,60 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json({ success: true, frais_hospitalisation, jours, genererCertificat: true });
 }
 
-// Mise à jour d'un résultat d'examen depuis le dossier
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = getSession();
   if (!session || session.role !== 'medecin') {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
   }
   await initDb();
-  const { examen_id, resultat } = await req.json();
-  if (!examen_id) return NextResponse.json({ error: 'ID examen requis' }, { status: 400 });
-  await dbRun('UPDATE examens SET resultat = $1 WHERE id = $2', [resultat || null, examen_id]);
-  return NextResponse.json({ success: true });
+  const consultId = parseInt(params.id);
+  const body = await req.json();
+
+  // Mise à jour d'un résultat d'examen unique
+  if (body.examen_id) {
+    await dbRun('UPDATE examens SET resultat = $1 WHERE id = $2', [body.resultat || null, body.examen_id]);
+    return NextResponse.json({ success: true });
+  }
+
+  // Mise à jour complète de la consultation (édition du dossier)
+  if (body.full_update) {
+    const { motif, examen_physique, diagnostic, notes, tension, temperature, pouls, poids, taille, prescriptions, examens } = body;
+
+    await dbRun(
+      `UPDATE consultations SET motif=$1, examen_physique=$2, diagnostic=$3, notes=$4,
+       tension=$5, temperature=$6, pouls=$7, poids=$8, taille=$9 WHERE id=$10`,
+      [motif || null, examen_physique || null, diagnostic || null, notes || null,
+       tension || null, temperature || null, pouls || null, poids || null, taille || null, consultId]
+    );
+
+    // Remplacer les prescriptions
+    await dbRun('DELETE FROM prescriptions WHERE consultation_id = $1', [consultId]);
+    if (prescriptions?.length) {
+      for (const p of prescriptions) {
+        if (p.medicament) {
+          await dbRun(
+            'INSERT INTO prescriptions (consultation_id, medicament, posologie, duree) VALUES ($1, $2, $3, $4)',
+            [consultId, p.medicament, p.posologie || null, p.duree || null]
+          );
+        }
+      }
+    }
+
+    // Remplacer les examens
+    await dbRun('DELETE FROM examens WHERE consultation_id = $1', [consultId]);
+    if (examens?.length) {
+      for (const e of examens) {
+        if (e.type_examen) {
+          await dbRun(
+            'INSERT INTO examens (consultation_id, categorie, type_examen, resultat) VALUES ($1, $2, $3, $4)',
+            [consultId, e.categorie || 'autres', e.type_examen, e.resultat || null]
+          );
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
+  return NextResponse.json({ error: 'Action non reconnue' }, { status: 400 });
 }
