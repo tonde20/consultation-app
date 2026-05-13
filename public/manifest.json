@@ -1,0 +1,25 @@
+{
+  "name": "Hôpital de District de Boromo",
+  "short_name": "HDB Médical",
+  "description": "Application de gestion des consultations médicales",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "orientation": "any",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/images/logo-cma.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/logo-cma.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
