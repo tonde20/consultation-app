@@ -95,9 +95,9 @@ export default function PatientDossierPage() {
     acuite_og: "",
     begaiement: "Néant",
     surdite: "Néant",
-    apte_pour: "Complément de dossier",
+    apte_pour: "pour complément de dossier",
     contre_doctor_id: "",
-    contre_apte_pour: "Complément de dossier",
+    contre_apte_pour: "pour complément de dossier",
   });
 
   const [rdvForm, setRdvForm] = useState({ doctor_id: "", date_heure: "", motif: "" });
@@ -379,7 +379,7 @@ export default function PatientDossierPage() {
           },
           signatureImg: signatureData || undefined,
         });
-        setCertForm({ type: "Médical", contenu: "", nb_jours: "", date_debut: "", date_fin: "", date_deces: "", heure_deces: "", lieu_deces: "", cause_deces: "sa maladie", cause_autres: "", activite_sportive: "la pratique des activités sportives", etablissement_frequente: "", classe: "", candidat_au: "", session_exam: "", duree_inaptitude: "", mois_grossesse: "", monsieur_prenom: "", monsieur_nom: "", mademoiselle_prenom: "", mademoiselle_nom: "", qualification: "", radio: "Néant", bw: "Néant", acuite_od: "", acuite_og: "", begaiement: "Néant", surdite: "Néant", apte_pour: "Complément de dossier", contre_doctor_id: "", contre_apte_pour: "Complément de dossier" });
+        setCertForm({ type: "Médical", contenu: "", nb_jours: "", date_debut: "", date_fin: "", date_deces: "", heure_deces: "", lieu_deces: "", cause_deces: "sa maladie", cause_autres: "", activite_sportive: "la pratique des activités sportives", etablissement_frequente: "", classe: "", candidat_au: "", session_exam: "", duree_inaptitude: "", mois_grossesse: "", monsieur_prenom: "", monsieur_nom: "", mademoiselle_prenom: "", mademoiselle_nom: "", qualification: "", radio: "Néant", bw: "Néant", acuite_od: "", acuite_og: "", begaiement: "Néant", surdite: "Néant", apte_pour: "pour complément de dossier", contre_doctor_id: "", contre_apte_pour: "pour complément de dossier" });
         setSignatureData("");
         setupCanvas();
         const updated = await fetch(`/api/patients/${code}`);
@@ -405,7 +405,7 @@ export default function PatientDossierPage() {
           certificat: { type: certForm.type, contenu, date: new Date().toISOString(), doctor_prenom, doctor_nom },
           signatureImg: signatureData || undefined,
         });
-        setCertForm({ type: "Médical", contenu: "", nb_jours: "", date_debut: "", date_fin: "", date_deces: "", heure_deces: "", lieu_deces: "", cause_deces: "sa maladie", cause_autres: "", activite_sportive: "la pratique des activités sportives", etablissement_frequente: "", classe: "", candidat_au: "", session_exam: "", duree_inaptitude: "", mois_grossesse: "", monsieur_prenom: "", monsieur_nom: "", mademoiselle_prenom: "", mademoiselle_nom: "", qualification: "", radio: "Néant", bw: "Néant", acuite_od: "", acuite_og: "", begaiement: "Néant", surdite: "Néant", apte_pour: "Complément de dossier", contre_doctor_id: "", contre_apte_pour: "Complément de dossier" });
+        setCertForm({ type: "Médical", contenu: "", nb_jours: "", date_debut: "", date_fin: "", date_deces: "", heure_deces: "", lieu_deces: "", cause_deces: "sa maladie", cause_autres: "", activite_sportive: "la pratique des activités sportives", etablissement_frequente: "", classe: "", candidat_au: "", session_exam: "", duree_inaptitude: "", mois_grossesse: "", monsieur_prenom: "", monsieur_nom: "", mademoiselle_prenom: "", mademoiselle_nom: "", qualification: "", radio: "Néant", bw: "Néant", acuite_od: "", acuite_og: "", begaiement: "Néant", surdite: "Néant", apte_pour: "pour complément de dossier", contre_doctor_id: "", contre_apte_pour: "pour complément de dossier" });
         setSignatureData("");
         setupCanvas();
         const updated = await fetch(`/api/patients/${code}`);
@@ -431,7 +431,7 @@ export default function PatientDossierPage() {
         certificat: { type: certForm.type, contenu, date: new Date().toISOString(), doctor_prenom, doctor_nom },
         signatureImg: signatureData || undefined,
       });
-      setCertForm({ type: "Médical", contenu: "", nb_jours: "", date_debut: "", date_fin: "", date_deces: "", heure_deces: "", lieu_deces: "", cause_deces: "sa maladie", cause_autres: "", activite_sportive: "la pratique des activités sportives", etablissement_frequente: "", classe: "", candidat_au: "", session_exam: "", duree_inaptitude: "", mois_grossesse: "", monsieur_prenom: "", monsieur_nom: "", mademoiselle_prenom: "", mademoiselle_nom: "", qualification: "", radio: "Néant", bw: "Néant", acuite_od: "", acuite_og: "", begaiement: "Néant", surdite: "Néant", apte_pour: "Complément de dossier", contre_doctor_id: "", contre_apte_pour: "Complément de dossier" });
+      setCertForm({ type: "Médical", contenu: "", nb_jours: "", date_debut: "", date_fin: "", date_deces: "", heure_deces: "", lieu_deces: "", cause_deces: "sa maladie", cause_autres: "", activite_sportive: "la pratique des activités sportives", etablissement_frequente: "", classe: "", candidat_au: "", session_exam: "", duree_inaptitude: "", mois_grossesse: "", monsieur_prenom: "", monsieur_nom: "", mademoiselle_prenom: "", mademoiselle_nom: "", qualification: "", radio: "Néant", bw: "Néant", acuite_od: "", acuite_og: "", begaiement: "Néant", surdite: "Néant", apte_pour: "pour complément de dossier", contre_doctor_id: "", contre_apte_pour: "pour complément de dossier" });
       setSignatureData("");
       setupCanvas();
       const updated = await fetch(`/api/patients/${code}`);
@@ -1580,7 +1580,7 @@ export default function PatientDossierPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Apte pour (visite)</label>
-                    <input type="text" value={certForm.apte_pour} onChange={e => setCertForm(f => ({ ...f, apte_pour: e.target.value }))} className="input-field" placeholder="Complément de dossier..." />
+                    <input type="text" value={certForm.apte_pour} onChange={e => setCertForm(f => ({ ...f, apte_pour: e.target.value }))} className="input-field" placeholder="pour complément de dossier..." />
                   </div>
                   <div className="border-t border-blue-200 pt-3">
                     <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">Contre-visite</p>
@@ -1593,7 +1593,7 @@ export default function PatientDossierPage() {
                     </div>
                     <div className="mt-2">
                       <label className="block text-xs font-medium text-gray-600 mb-1">Apte pour (contre-visite)</label>
-                      <input type="text" value={certForm.contre_apte_pour} onChange={e => setCertForm(f => ({ ...f, contre_apte_pour: e.target.value }))} className="input-field" placeholder="Complément de dossier..." />
+                      <input type="text" value={certForm.contre_apte_pour} onChange={e => setCertForm(f => ({ ...f, contre_apte_pour: e.target.value }))} className="input-field" placeholder="pour complément de dossier..." />
                     </div>
                   </div>
                 </div>
