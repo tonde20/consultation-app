@@ -153,6 +153,12 @@ export async function initDb() {
   `;
 
   await seedData();
+
+  // Migration : forcer le nom de l'établissement si encore à l'ancienne valeur
+  await dbRun(
+    "UPDATE settings SET value = $1 WHERE key = 'etablissement_nom' AND value IN ('CMA de Boromo', 'CMA DE BOROMO')",
+    ['HOPITAL DE DISTRICT DE BOROMO']
+  );
 }
 
 async function seedData() {
@@ -160,8 +166,6 @@ async function seedData() {
   if (setting) return;
 
   await sql`INSERT INTO settings (key, value) VALUES ('etablissement_nom', 'HOPITAL DE DISTRICT DE BOROMO') ON CONFLICT DO NOTHING`;
-  // Migration : mise à jour du nom si encore à l'ancienne valeur par défaut
-  await sql`UPDATE settings SET value = 'HOPITAL DE DISTRICT DE BOROMO' WHERE key = 'etablissement_nom' AND value IN ('CMA de Boromo','CMA DE BOROMO')`;
   await sql`INSERT INTO settings (key, value) VALUES ('consultation_frais', '1250') ON CONFLICT DO NOTHING`;
   await sql`INSERT INTO settings (key, value) VALUES ('certificat_frais', '2000') ON CONFLICT DO NOTHING`;
   await sql`INSERT INTO settings (key, value) VALUES ('consultation_validite_jours', '10') ON CONFLICT DO NOTHING`;

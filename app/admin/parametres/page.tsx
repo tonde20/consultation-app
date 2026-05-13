@@ -34,7 +34,8 @@ export default function ParametresPage() {
     if (res.ok) {
       setMessage({ type: "success", text: "Paramètres enregistrés avec succès" });
     } else {
-      setMessage({ type: "error", text: "Erreur lors de la sauvegarde" });
+      const errData = await res.json().catch(() => ({}));
+      setMessage({ type: "error", text: errData.error || "Erreur lors de la sauvegarde" });
     }
     setSaving(false);
     setTimeout(() => setMessage({ type: "", text: "" }), 3000);
