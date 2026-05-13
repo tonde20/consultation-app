@@ -9,8 +9,41 @@ interface RapportData {
   diagnostics: { diagnostic: string; count: string }[];
   parProfession: { profession: string; count: string }[];
   parResidence: { residence: string; count: string }[];
+  hospitalisations: { total: number; sorties: number };
+  examensParCategorie: { categorie: string; count: string }[];
+  topExamens: { categorie: string; type_examen: string; count: string }[];
   dateDebut?: string | null;
   dateFin?: string | null;
+}
+
+function BarChart({ items, colorClass }: { items: { label: string; count: number }[]; colorClass: string }) {
+  const max = Math.max(...items.map(i => i.count), 1);
+  return (
+    <div className="space-y-2">
+      {items.map((item, i) => (
+        <div key={i}>
+          <div className="flex justify-between text-xs mb-0.5">
+            <span className="text-gray-600 truncate mr-2 max-w-[65%]">{item.label}</span>
+            <span className="font-semibold text-gray-800">{item.count} cas</span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-2">
+            <div className={`h-2 rounded-full ${colorClass} transition-all`} style={{ width: `${(item.count / max) * 100}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function catLabel(cat: string) {
+  if (cat === "bilan_sanguin") return "🩸 Bilan sanguin";
+  if (cat === "imagerie") return "🔬 Imagérie";
+  return "📋 Autres";
+}
+function catColor(cat: string) {
+  if (cat === "bilan_sanguin") return "bg-red-500";
+  if (cat === "imagerie") return "bg-blue-500";
+  return "bg-gray-500";
 }
 
 export default function RapportPage() {
@@ -21,7 +54,7 @@ export default function RapportPage() {
   const [dateFin, setDateFin] = useState(today);
   const [rapport, setRapport] = useState<RapportData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [etablissement, setEtablissement] = useState("CMA de Boromo");
+  const [etablissement, setEtablissement] = useState("HOPITAL DE DISTRICT DE BOROMO");
   const [error, setError] = useState("");
 
   const fetchRapport = async () => {
@@ -48,21 +81,20 @@ export default function RapportPage() {
 
   const handlePDF = () => {
     if (!rapport) return;
-    genererRapportConsultations({
-      etablissement,
-      ...rapport,
-    });
+    genererRapportConsultations({ etablissement, ...rapport });
   };
 
   const totalSexe = rapport?.parSexe.reduce((a, s) => a + Number(s.count), 0) ?? 0;
   const masculin = rapport?.parSexe.find(s => s.sexe === "M");
   const feminin  = rapport?.parSexe.find(s => s.sexe === "F");
 
+  const totalExamens = rapport?.examensParCategorie.reduce((a, e) => a + Number(e.count), 0) ?? 0;
+
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-8 max-w-5xl">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Rapport des consultations</h1>
-        <p className="text-gray-500 text-sm mt-1">Statistiques épidémiologiques des consultations</p>
+        <p className="text-gray-500 text-sm mt-1">Statistiques épidémiologiques et activité médicale</p>
       </div>
 
       {/* Filtres */}
@@ -91,47 +123,30 @@ export default function RapportPage() {
 
       {rapport && (
         <div className="space-y-6">
-          {/* Indicateurs clés */}
+          {/* KPIs principaux */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="card text-center">
+            <div className="card text-center border-t-4 border-primary-500">
               <p className="text-3xl font-bold text-primary-700">{rapport.total}</p>
               <p className="text-sm text-gray-500 mt-1">Consultations</p>
+              <p className="text-xs text-gray-400">(visites uniques)</p>
             </div>
-            <div className="card text-center">
-              <p className="text-3xl font-bold text-teal-600">{rapport.ageMoyen > 0 ? `${rapport.ageMoyen}` : "—"}</p>
+            <div className="card text-center border-t-4 border-teal-500">
+              <p className="text-3xl font-bold text-teal-600">{rapport.ageMoyen > 0 ? rapport.ageMoyen : "—"}</p>
               <p className="text-sm text-gray-500 mt-1">Âge moyen (ans)</p>
             </div>
-            <div className="card text-center">
-              <p className="text-3xl font-bold text-blue-600">{masculin?.count ?? 0}</p>
-              <p className="text-sm text-gray-500 mt-1">Hommes {totalSexe > 0 ? `(${Math.round(Number(masculin?.count ?? 0) / totalSexe * 100)}%)` : ""}</p>
+            <div className="card text-center border-t-4 border-orange-500">
+              <p className="text-3xl font-bold text-orange-600">{rapport.hospitalisations.total}</p>
+              <p className="text-sm text-gray-500 mt-1">Hospitalisations</p>
+              <p className="text-xs text-gray-400">{rapport.hospitalisations.sorties} sortie(s) enregistrée(s)</p>
             </div>
-            <div className="card text-center">
-              <p className="text-3xl font-bold text-pink-600">{feminin?.count ?? 0}</p>
-              <p className="text-sm text-gray-500 mt-1">Femmes {totalSexe > 0 ? `(${Math.round(Number(feminin?.count ?? 0) / totalSexe * 100)}%)` : ""}</p>
+            <div className="card text-center border-t-4 border-purple-500">
+              <p className="text-3xl font-bold text-purple-600">{totalExamens}</p>
+              <p className="text-sm text-gray-500 mt-1">Examens demandés</p>
             </div>
           </div>
 
+          {/* Ligne 2 — Sexe + Diagnostics */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Principaux diagnostics */}
-            <div className="card">
-              <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-teal-500 inline-block"></span>
-                Principaux diagnostics
-              </h2>
-              {rapport.diagnostics.length === 0 ? (
-                <p className="text-gray-400 text-sm">Aucun diagnostic enregistré</p>
-              ) : (
-                <div className="space-y-2">
-                  {rapport.diagnostics.map((d, i) => (
-                    <div key={i} className="flex justify-between items-center text-sm py-1 border-b border-gray-50 last:border-0">
-                      <span className="text-gray-700 flex-1 mr-2">{d.diagnostic}</span>
-                      <span className="font-semibold text-teal-700 whitespace-nowrap">{d.count} cas</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Distribution par sexe */}
             <div className="card">
               <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -142,6 +157,21 @@ export default function RapportPage() {
                 <p className="text-gray-400 text-sm">Aucune donnée</p>
               ) : (
                 <div className="space-y-3">
+                  {/* Donut simplifié en CSS */}
+                  <div className="flex items-center justify-center gap-8 py-3">
+                    {[
+                      { label: "Hommes", count: Number(masculin?.count ?? 0), color: "bg-blue-500", text: "text-blue-700" },
+                      { label: "Femmes", count: Number(feminin?.count ?? 0), color: "bg-pink-500", text: "text-pink-700" },
+                    ].map(s => (
+                      <div key={s.label} className="text-center">
+                        <div className={`text-3xl font-bold ${s.text}`}>{s.count}</div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <div className={`w-2.5 h-2.5 rounded-full ${s.color}`}></div>
+                          <span className="text-xs text-gray-500">{s.label} {totalSexe > 0 ? `(${Math.round(s.count / totalSexe * 100)}%)` : ""}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                   {rapport.parSexe.map((s, i) => {
                     const pct = totalSexe > 0 ? Math.round(Number(s.count) / totalSexe * 100) : 0;
                     return (
@@ -150,8 +180,8 @@ export default function RapportPage() {
                           <span className="text-gray-700">{s.sexe === "M" ? "Masculin" : "Féminin"}</span>
                           <span className="font-semibold">{s.count} ({pct}%)</span>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
-                          <div className={`h-2 rounded-full ${s.sexe === "M" ? "bg-blue-500" : "bg-pink-500"}`} style={{ width: `${pct}%` }}></div>
+                        <div className="w-full bg-gray-100 rounded-full h-2.5">
+                          <div className={`h-2.5 rounded-full ${s.sexe === "M" ? "bg-blue-500" : "bg-pink-500"}`} style={{ width: `${pct}%` }} />
                         </div>
                       </div>
                     );
@@ -160,7 +190,66 @@ export default function RapportPage() {
               )}
             </div>
 
-            {/* Distribution par profession */}
+            {/* Principaux diagnostics */}
+            <div className="card">
+              <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-teal-500 inline-block"></span>
+                Principaux diagnostics
+              </h2>
+              {rapport.diagnostics.length === 0 ? (
+                <p className="text-gray-400 text-sm">Aucun diagnostic enregistré</p>
+              ) : (
+                <BarChart
+                  items={rapport.diagnostics.map(d => ({ label: d.diagnostic, count: Number(d.count) }))}
+                  colorClass="bg-teal-500"
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Examens */}
+          {totalExamens > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Répartition par catégorie */}
+              <div className="card">
+                <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-500 inline-block"></span>
+                  Examens par type
+                </h2>
+                <div className="space-y-3">
+                  {rapport.examensParCategorie.map((e, i) => {
+                    const pct = totalExamens > 0 ? Math.round(Number(e.count) / totalExamens * 100) : 0;
+                    return (
+                      <div key={i}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-700">{catLabel(e.categorie)}</span>
+                          <span className="font-semibold">{e.count} ({pct}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2.5">
+                          <div className={`h-2.5 rounded-full ${catColor(e.categorie)}`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Top examens demandés */}
+              <div className="card">
+                <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>
+                  Examens les plus demandés
+                </h2>
+                <BarChart
+                  items={rapport.topExamens.slice(0, 8).map(e => ({ label: e.type_examen, count: Number(e.count) }))}
+                  colorClass="bg-indigo-500"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Profession + Résidence */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="card">
               <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
@@ -169,22 +258,13 @@ export default function RapportPage() {
               {rapport.parProfession.length === 0 ? (
                 <p className="text-gray-400 text-sm">Aucune profession enregistrée</p>
               ) : (
-                <div className="space-y-2">
-                  {rapport.parProfession.map((p, i) => {
-                    const total = rapport.parProfession.reduce((a, x) => a + Number(x.count), 0);
-                    const pct = Math.round(Number(p.count) / total * 100);
-                    return (
-                      <div key={i} className="flex justify-between items-center text-sm py-1 border-b border-gray-50 last:border-0">
-                        <span className="text-gray-700 flex-1 mr-2">{p.profession}</span>
-                        <span className="font-semibold text-green-700 whitespace-nowrap">{p.count} ({pct}%)</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <BarChart
+                  items={rapport.parProfession.map(p => ({ label: p.profession, count: Number(p.count) }))}
+                  colorClass="bg-green-500"
+                />
               )}
             </div>
 
-            {/* Distribution par provenance */}
             <div className="card">
               <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-orange-500 inline-block"></span>
@@ -193,18 +273,10 @@ export default function RapportPage() {
               {rapport.parResidence.length === 0 ? (
                 <p className="text-gray-400 text-sm">Aucune résidence enregistrée</p>
               ) : (
-                <div className="space-y-2">
-                  {rapport.parResidence.map((r, i) => {
-                    const total = rapport.parResidence.reduce((a, x) => a + Number(x.count), 0);
-                    const pct = Math.round(Number(r.count) / total * 100);
-                    return (
-                      <div key={i} className="flex justify-between items-center text-sm py-1 border-b border-gray-50 last:border-0">
-                        <span className="text-gray-700 flex-1 mr-2">{r.residence}</span>
-                        <span className="font-semibold text-orange-700 whitespace-nowrap">{r.count} ({pct}%)</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <BarChart
+                  items={rapport.parResidence.map(r => ({ label: r.residence, count: Number(r.count) }))}
+                  colorClass="bg-orange-500"
+                />
               )}
             </div>
           </div>

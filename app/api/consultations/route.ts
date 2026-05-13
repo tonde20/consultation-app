@@ -7,19 +7,23 @@ export async function POST(req: NextRequest) {
   if (!session || session.role !== 'medecin') {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
   }
-  const { patient_id, motif, diagnostic, notes, tension, temperature, poids, taille, prescriptions, examens, type_prise_en_charge, service_hospitalisation } = await req.json();
+  const { patient_id, motif, diagnostic, notes, tension, temperature, pouls, poids, taille, prescriptions, examens, type_prise_en_charge, service_hospitalisation } = await req.json();
   if (!patient_id) return NextResponse.json({ error: 'Patient requis' }, { status: 400 });
 
   await initDb();
 
+  // Comparaison de dates en texte — plus sûr sur colonne TEXT
+  const todayStr = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
+  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
   // Bloquer si une consultation a déjà été enregistrée aujourd'hui pour ce patient
   const dejaAujourdHui = await dbGet(
-    `SELECT id FROM consultations WHERE patient_id = $1 AND DATE(date) = CURRENT_DATE LIMIT 1`,
-    [patient_id]
+    `SELECT id FROM consultations WHERE patient_id = $1 AND date >= $2 AND date < $3 LIMIT 1`,
+    [patient_id, todayStr, tomorrowStr]
   );
   if (dejaAujourdHui) {
     return NextResponse.json(
-      { error: 'Une consultation a déjà été enregistrée aujourd\'hui pour ce patient. Vous ne pouvez pas enregistrer la même consultation deux fois.' },
+      { error: "Une consultation a déjà été enregistrée aujourd'hui pour ce patient. Impossible d'enregistrer deux fois la même consultation." },
       { status: 409 }
     );
   }
@@ -33,12 +37,11 @@ export async function POST(req: NextRequest) {
   const fraisRow = await dbGet('SELECT value FROM settings WHERE key = $1', ['consultation_frais']);
   const fraisBase = parseInt(fraisRow?.value || '1250');
 
-  // Vérifier si le patient a une consultation encore active (dans la période de validité)
+  // Vérifier si le patient a une consultation encore active (valide_jusqu >= aujourd'hui)
   const consultActive = await dbGet(
-    `SELECT id, valide_jusqu FROM consultations WHERE patient_id = $1 AND valide_jusqu >= CURRENT_DATE ORDER BY date DESC LIMIT 1`,
-    [patient_id]
+    `SELECT id, valide_jusqu FROM consultations WHERE patient_id = $1 AND valide_jusqu >= $2 ORDER BY date DESC LIMIT 1`,
+    [patient_id, todayStr]
   );
-  // Si une consultation est encore active, la nouvelle est gratuite
   const montant = consultActive ? 0 : fraisBase;
   const estGratuite = montant === 0;
 
@@ -46,9 +49,9 @@ export async function POST(req: NextRequest) {
   const serviceH = typePC === 'hospitalisation' ? (service_hospitalisation || null) : null;
 
   const consult = await dbGet(
-    `INSERT INTO consultations (patient_id, doctor_id, motif, diagnostic, notes, tension, temperature, poids, taille, valide_jusqu, montant, type_prise_en_charge, service_hospitalisation)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-    [patient_id, session.id, motif || null, diagnostic || null, notes || null, tension || null, temperature || null, poids || null, taille || null, valide_jusqu, montant, typePC, serviceH]
+    `INSERT INTO consultations (patient_id, doctor_id, motif, diagnostic, notes, tension, temperature, pouls, poids, taille, valide_jusqu, montant, type_prise_en_charge, service_hospitalisation)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+    [patient_id, session.id, motif || null, diagnostic || null, notes || null, tension || null, temperature || null, pouls || null, poids || null, taille || null, valide_jusqu, montant, typePC, serviceH]
   );
 
   const consultId = consult.id;
@@ -68,14 +71,13 @@ export async function POST(req: NextRequest) {
     for (const e of examens) {
       if (e.type_examen) {
         await dbRun(
-          'INSERT INTO examens (consultation_id, type_examen, description) VALUES ($1, $2, $3)',
-          [consultId, e.type_examen, e.description || null]
+          'INSERT INTO examens (consultation_id, categorie, type_examen, description, resultat) VALUES ($1, $2, $3, $4, $5)',
+          [consultId, e.categorie || 'autres', e.type_examen, e.description || null, e.resultat || null]
         );
       }
     }
   }
 
-  // N'enregistrer un paiement que si la consultation est payante
   if (!estGratuite) {
     await dbRun(
       'INSERT INTO paiements (patient_id, type, reference_id, montant) VALUES ($1, $2, $3, $4)',

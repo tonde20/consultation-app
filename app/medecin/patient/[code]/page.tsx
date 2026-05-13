@@ -4,13 +4,14 @@ import { useParams, useRouter } from "next/navigation";
 import { genererOrdonnance, genererExamens, genererCertificat } from "@/lib/pdf";
 
 interface Prescription { id: number; medicament: string; posologie: string; duree: string; }
-interface Examen { id: number; type_examen: string; description: string; resultat: string; }
+interface Examen { id: number; categorie: string; type_examen: string; description: string; resultat: string; }
 interface Consultation {
   id: number; date: string; motif: string; diagnostic: string; notes: string;
-  tension: string; temperature: string; poids: string; taille: string; valide_jusqu: string; montant: number;
+  tension: string; temperature: string; pouls: string; poids: string; taille: string; valide_jusqu: string; montant: number;
   doctor_nom: string; doctor_prenom: string;
   prescriptions: Prescription[]; examens: Examen[];
   type_prise_en_charge?: string; service_hospitalisation?: string;
+  date_sortie?: string; frais_hospitalisation?: number;
 }
 interface Patient {
   id: number; code: string; nom: string; prenom: string; date_naissance: string;
@@ -43,13 +44,27 @@ export default function PatientDossierPage() {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [doctors, setDoctors] = useState<any[]>([]);
 
+  const BILANS_SANGUINS = ["Numération formule sanguine (NFS)", "Créatininémie", "Glycémie", "Transaminases (ASAT/ALAT)", "Sérologie Dengue", "Goutte épaisse / Densité parasitaire", "Sérologie VIH", "Ag HBs", "Ac VHC", "Ionogramme sanguin"];
+  const BILANS_IMAGERIE = ["Radiographie standard", "Échographie"];
+
   const [consultForm, setConsultForm] = useState({
-    motif: "", diagnostic: "", notes: "", tension: "", temperature: "", poids: "", taille: "",
+    motif: "", diagnostic: "", notes: "", tension: "", temperature: "", pouls: "", poids: "", taille: "",
     type_prise_en_charge: "ambulatoire",
     service_hospitalisation: "",
     prescriptions: [{ medicament: "", posologie: "", duree: "" }],
-    examens: [{ type_examen: "", description: "" }],
   });
+
+  const [examensCategories, setExamensCategories] = useState<Set<string>>(new Set());
+  const [examensCoches, setExamensCoches] = useState<Set<string>>(new Set());
+  const [autresBilanText, setAutresBilanText] = useState("");
+  const [autresImagerieText, setAutresImagerieText] = useState("");
+  const [autresText, setAutresText] = useState("");
+  const [resultats, setResultats] = useState<Record<string, string>>({});
+  const [showResultats, setShowResultats] = useState(false);
+
+  const [sortiModal, setSortiModal] = useState<Consultation | null>(null);
+  const [dateSortie, setDateSortie] = useState("");
+  const [sortieLoading, setSortieLoading] = useState(false);
 
   const [certForm, setCertForm] = useState({
     type: "Médical",
@@ -91,9 +106,41 @@ export default function PatientDossierPage() {
     fetchAll();
   }, [code]);
 
+  const buildExamensPayload = () => {
+    const list: { categorie: string; type_examen: string; description: string; resultat: string }[] = [];
+    if (examensCategories.has("bilan_sanguin")) {
+      BILANS_SANGUINS.forEach(ex => {
+        if (examensCoches.has(`bilan_sanguin:${ex}`))
+          list.push({ categorie: "bilan_sanguin", type_examen: ex, description: "", resultat: resultats[`bilan_sanguin:${ex}`] || "" });
+      });
+      if (autresBilanText.trim())
+        list.push({ categorie: "bilan_sanguin", type_examen: autresBilanText.trim(), description: "Autre bilan sanguin", resultat: resultats[`bilan_sanguin:autres`] || "" });
+    }
+    if (examensCategories.has("imagerie")) {
+      BILANS_IMAGERIE.forEach(ex => {
+        if (examensCoches.has(`imagerie:${ex}`))
+          list.push({ categorie: "imagerie", type_examen: ex, description: "", resultat: resultats[`imagerie:${ex}`] || "" });
+      });
+      if (autresImagerieText.trim())
+        list.push({ categorie: "imagerie", type_examen: autresImagerieText.trim(), description: "Autre imagerie", resultat: resultats[`imagerie:autres`] || "" });
+    }
+    if (examensCategories.has("autres") && autresText.trim())
+      list.push({ categorie: "autres", type_examen: autresText.trim(), description: "", resultat: resultats[`autres:autres`] || "" });
+    return list;
+  };
+
+  const resetConsultForm = () => {
+    setConsultForm({ motif: "", diagnostic: "", notes: "", tension: "", temperature: "", pouls: "", poids: "", taille: "", type_prise_en_charge: "ambulatoire", service_hospitalisation: "", prescriptions: [{ medicament: "", posologie: "", duree: "" }] });
+    setExamensCategories(new Set());
+    setExamensCoches(new Set());
+    setAutresBilanText(""); setAutresImagerieText(""); setAutresText("");
+    setResultats({}); setShowResultats(false);
+  };
+
   const handleNewConsultation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!data) return;
+    const examens = buildExamensPayload();
     const res = await fetch("/api/consultations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -101,23 +148,59 @@ export default function PatientDossierPage() {
         patient_id: data.patient.id,
         ...consultForm,
         prescriptions: consultForm.prescriptions.filter(p => p.medicament),
-        examens: consultForm.examens.filter(ex => ex.type_examen),
+        examens,
       }),
     });
     if (res.ok) {
       const result = await res.json();
       const msg = result.gratuite
-        ? "Consultation enregistrée — Gratuite (consultation active en cours, patient dans la période de validité)"
+        ? "Consultation enregistrée — Gratuite (patient dans la période de validité)"
         : "Consultation enregistrée avec succès";
       setMessage({ type: "success", text: msg });
       setActiveTab("dossier");
       const updated = await fetch(`/api/patients/${code}`);
       if (updated.ok) setData(await updated.json());
-      setConsultForm({ motif: "", diagnostic: "", notes: "", tension: "", temperature: "", poids: "", taille: "", type_prise_en_charge: "ambulatoire", service_hospitalisation: "", prescriptions: [{ medicament: "", posologie: "", duree: "" }], examens: [{ type_examen: "", description: "" }] });
+      resetConsultForm();
     } else {
       const errData = await res.json().catch(() => ({}));
       setMessage({ type: "error", text: errData.error || "Erreur lors de l'enregistrement" });
     }
+  };
+
+  const handleSortie = async () => {
+    if (!sortiModal || !dateSortie) return;
+    setSortieLoading(true);
+    const res = await fetch(`/api/consultations/${sortiModal.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date_sortie: dateSortie }),
+    });
+    if (res.ok) {
+      const result = await res.json();
+      setMessage({ type: "success", text: `Sortie enregistrée. Frais d'hospitalisation : ${result.frais_hospitalisation.toLocaleString()} FCFA` });
+      setSortiModal(null);
+      setDateSortie("");
+      const updated = await fetch(`/api/patients/${code}`);
+      if (updated.ok) {
+        const d = await updated.json();
+        setData(d);
+        if (result.genererCertificat) {
+          const consult = d.consultations.find((c: Consultation) => c.id === sortiModal.id);
+          if (consult) {
+            const { genererCertificatHospitalisation } = await import("@/lib/pdf");
+            genererCertificatHospitalisation({
+              etablissement,
+              patient: d.patient,
+              consultation: consult,
+            });
+          }
+        }
+      }
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setMessage({ type: "error", text: err.error || "Erreur lors de la sortie" });
+    }
+    setSortieLoading(false);
   };
 
   const buildCertContenu = (doctorName: string): string => {
@@ -268,11 +351,12 @@ export default function PatientDossierPage() {
                 }
               </div>
               {/* Constantes vitales */}
-              {(selectedConsult.tension || selectedConsult.temperature || selectedConsult.poids || selectedConsult.taille) && (
+              {(selectedConsult.tension || selectedConsult.temperature || selectedConsult.pouls || selectedConsult.poids || selectedConsult.taille) && (
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Constantes vitales</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     {selectedConsult.tension && <div className="bg-primary-50 p-3 rounded-xl text-center"><p className="text-xs text-primary-500 font-medium">Tension</p><p className="font-bold text-primary-800 mt-0.5">{selectedConsult.tension}</p></div>}
+                    {selectedConsult.pouls && <div className="bg-red-50 p-3 rounded-xl text-center"><p className="text-xs text-red-500 font-medium">Pouls</p><p className="font-bold text-red-800 mt-0.5">{selectedConsult.pouls} bpm</p></div>}
                     {selectedConsult.temperature && <div className="bg-orange-50 p-3 rounded-xl text-center"><p className="text-xs text-orange-500 font-medium">Température</p><p className="font-bold text-orange-800 mt-0.5">{selectedConsult.temperature}°C</p></div>}
                     {selectedConsult.poids && <div className="bg-blue-50 p-3 rounded-xl text-center"><p className="text-xs text-blue-500 font-medium">Poids</p><p className="font-bold text-blue-800 mt-0.5">{selectedConsult.poids} kg</p></div>}
                     {selectedConsult.taille && <div className="bg-teal-50 p-3 rounded-xl text-center"><p className="text-xs text-teal-500 font-medium">Taille</p><p className="font-bold text-teal-800 mt-0.5">{selectedConsult.taille} cm</p></div>}
@@ -339,7 +423,64 @@ export default function PatientDossierPage() {
                   Demande d'examens PDF
                 </button>
               )}
+              {selectedConsult.type_prise_en_charge === "hospitalisation" && !selectedConsult.date_sortie && (
+                <button
+                  onClick={() => { setSortiModal(selectedConsult); setDateSortie(new Date().toISOString().split('T')[0]); setSelectedConsult(null); }}
+                  className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm"
+                >
+                  🏥 Enregistrer la sortie
+                </button>
+              )}
+              {selectedConsult.date_sortie && (
+                <span className="text-xs text-gray-500 self-center">Sorti le {new Date(selectedConsult.date_sortie).toLocaleDateString("fr-FR")} — {(selectedConsult.frais_hospitalisation || 0).toLocaleString()} FCFA</span>
+              )}
               <button onClick={() => setSelectedConsult(null)} className="btn-secondary text-sm ml-auto">Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal sortie d'hospitalisation */}
+      {sortiModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="font-bold text-gray-800 text-lg mb-1">Sortie d'hospitalisation</h3>
+            <p className="text-sm text-gray-500 mb-4">Enregistrez la date de sortie pour calculer les frais et générer le certificat.</p>
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4 space-y-1 text-sm">
+              <p className="font-semibold text-orange-800">Tarification hospitalisation</p>
+              <p className="text-orange-700">• Chambre : <strong>1 000 FCFA / jour</strong></p>
+              <p className="text-orange-700">• Forfait soins infirmiers : <strong>500 FCFA</strong></p>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date d'admission</label>
+              <p className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">{new Date(sortiModal.date).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</p>
+            </div>
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date de sortie *</label>
+              <input
+                type="date"
+                value={dateSortie}
+                min={sortiModal.date.split('T')[0]}
+                onChange={e => setDateSortie(e.target.value)}
+                className="input-field"
+              />
+              {dateSortie && (() => {
+                const jours = Math.max(1, Math.ceil((new Date(dateSortie).getTime() - new Date(sortiModal.date.split('T')[0]).getTime()) / 86400000));
+                const total = jours * 1000 + 500;
+                return (
+                  <div className="mt-3 bg-primary-50 border border-primary-200 rounded-xl p-3 text-sm">
+                    <p className="text-primary-700"><span className="font-semibold">{jours} jour(s)</span> × 1 000 FCFA = {(jours * 1000).toLocaleString()} FCFA</p>
+                    <p className="text-primary-700">+ Forfait soins : 500 FCFA</p>
+                    <p className="font-bold text-primary-900 mt-1 text-base">Total : {total.toLocaleString()} FCFA</p>
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={handleSortie} disabled={!dateSortie || sortieLoading} className="btn-primary flex-1">
+                {sortieLoading ? "Enregistrement..." : "Valider la sortie + Générer certificat"}
+              </button>
+              <button onClick={() => { setSortiModal(null); setDateSortie(""); }} className="btn-secondary">Annuler</button>
             </div>
           </div>
         </div>
@@ -604,10 +745,14 @@ export default function PatientDossierPage() {
               <span className="w-6 h-6 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-xs font-bold">1</span>
               Constantes vitales
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Tension artérielle</label>
-                <input type="text" value={consultForm.tension} onChange={e => setConsultForm(f => ({ ...f, tension: e.target.value }))} className="input-field" placeholder="120/80 mmHg" />
+                <input type="text" value={consultForm.tension} onChange={e => setConsultForm(f => ({ ...f, tension: e.target.value }))} className="input-field" placeholder="120/80" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Pouls (bpm)</label>
+                <input type="text" value={consultForm.pouls} onChange={e => setConsultForm(f => ({ ...f, pouls: e.target.value }))} className="input-field" placeholder="72" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Température (°C)</label>
@@ -719,23 +864,136 @@ export default function PatientDossierPage() {
             </div>
           )}
 
+          {/* Examens structurés 3 étapes */}
           <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-700 flex items-center gap-2">
-                <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-xs font-bold">{consultForm.type_prise_en_charge === "ambulatoire" ? "4" : "3"}</span>
-                Examens demandés
-              </h3>
-              <button type="button" onClick={() => setConsultForm(f => ({ ...f, examens: [...f.examens, { type_examen: "", description: "" }] }))} className="text-sm text-teal-600 hover:text-teal-700 font-medium">+ Ajouter</button>
+            <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-xs font-bold">{consultForm.type_prise_en_charge === "ambulatoire" ? "4" : "3"}</span>
+              Examens complémentaires
+            </h3>
+
+            {/* Étape 1 : catégories */}
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Étape 1 — Types d'examens demandés</p>
+              <div className="flex flex-wrap gap-3">
+                {[
+                  { key: "bilan_sanguin", label: "🩸 Bilan sanguin", color: "border-red-300 bg-red-50 text-red-700" },
+                  { key: "imagerie",      label: "🔬 Imagérie",      color: "border-blue-300 bg-blue-50 text-blue-700" },
+                  { key: "autres",        label: "📋 Autres",         color: "border-gray-300 bg-gray-50 text-gray-700" },
+                ].map(cat => (
+                  <label key={cat.key} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer font-medium text-sm transition-all ${examensCategories.has(cat.key) ? cat.color + " shadow-sm" : "border-gray-200 bg-white text-gray-500"}`}>
+                    <input
+                      type="checkbox"
+                      checked={examensCategories.has(cat.key)}
+                      onChange={e => {
+                        const s = new Set(examensCategories);
+                        e.target.checked ? s.add(cat.key) : s.delete(cat.key);
+                        setExamensCategories(s);
+                      }}
+                      className="rounded"
+                    />
+                    {cat.label}
+                  </label>
+                ))}
+              </div>
             </div>
-            <div className="space-y-2">
-              {consultForm.examens.map((ex, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                  <input type="text" value={ex.type_examen} onChange={e => { const a = [...consultForm.examens]; a[i].type_examen = e.target.value; setConsultForm(f => ({ ...f, examens: a })); }} className="input-field col-span-5" placeholder="Type d'examen" />
-                  <input type="text" value={ex.description} onChange={e => { const a = [...consultForm.examens]; a[i].description = e.target.value; setConsultForm(f => ({ ...f, examens: a })); }} className="input-field col-span-6" placeholder="Description / précisions" />
-                  {i > 0 && <button type="button" onClick={() => setConsultForm(f => ({ ...f, examens: f.examens.filter((_, j) => j !== i) }))} className="text-red-400 hover:text-red-600 col-span-1 text-center text-lg">×</button>}
-                </div>
-              ))}
-            </div>
+
+            {/* Étape 2 : examens par catégorie */}
+            {examensCategories.size > 0 && (
+              <div className="mb-4 space-y-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Étape 2 — Sélection des examens</p>
+
+                {examensCategories.has("bilan_sanguin") && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                    <p className="text-xs font-bold text-red-700 uppercase tracking-wide mb-3">🩸 Bilans sanguins</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                      {BILANS_SANGUINS.map(ex => (
+                        <label key={ex} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={examensCoches.has(`bilan_sanguin:${ex}`)}
+                            onChange={e => {
+                              const s = new Set(examensCoches);
+                              e.target.checked ? s.add(`bilan_sanguin:${ex}`) : s.delete(`bilan_sanguin:${ex}`);
+                              setExamensCoches(s);
+                            }}
+                            className="rounded text-red-600"
+                          />
+                          <span className="text-gray-700">{ex}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-red-700 mb-1">Autres bilans sanguins (préciser) :</label>
+                      <input type="text" value={autresBilanText} onChange={e => setAutresBilanText(e.target.value)} className="input-field text-sm" placeholder="Ex : Frottis sanguin, Lipidogramme..." />
+                    </div>
+                  </div>
+                )}
+
+                {examensCategories.has("imagerie") && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-3">🔬 Imagérie</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                      {BILANS_IMAGERIE.map(ex => (
+                        <label key={ex} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={examensCoches.has(`imagerie:${ex}`)}
+                            onChange={e => {
+                              const s = new Set(examensCoches);
+                              e.target.checked ? s.add(`imagerie:${ex}`) : s.delete(`imagerie:${ex}`);
+                              setExamensCoches(s);
+                            }}
+                            className="rounded text-blue-600"
+                          />
+                          <span className="text-gray-700">{ex}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-blue-700 mb-1">Autre imagerie (préciser) :</label>
+                      <input type="text" value={autresImagerieText} onChange={e => setAutresImagerieText(e.target.value)} className="input-field text-sm" placeholder="Ex : Scanner, IRM..." />
+                    </div>
+                  </div>
+                )}
+
+                {examensCategories.has("autres") && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">📋 Autres examens</p>
+                    <input type="text" value={autresText} onChange={e => setAutresText(e.target.value)} className="input-field text-sm" placeholder="Précisez l'examen demandé..." />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Étape 3 : résultats (optionnel) */}
+            {buildExamensPayload().length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowResultats(v => !v)}
+                  className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 mb-3"
+                >
+                  {showResultats ? "▲" : "▼"} Étape 3 — Renseigner les résultats (optionnel)
+                </button>
+                {showResultats && (
+                  <div className="space-y-2 bg-teal-50 border border-teal-200 rounded-xl p-4">
+                    <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide mb-2">Résultats disponibles dès maintenant</p>
+                    {buildExamensPayload().map(ex => (
+                      <div key={`${ex.categorie}:${ex.type_examen}`} className="flex items-center gap-3">
+                        <span className="text-sm text-gray-700 w-48 flex-shrink-0">{ex.type_examen}</span>
+                        <input
+                          type="text"
+                          value={resultats[`${ex.categorie}:${ex.type_examen === (ex.categorie === 'bilan_sanguin' ? autresBilanText.trim() : ex.categorie === 'imagerie' ? autresImagerieText.trim() : autresText.trim()) ? 'autres' : ex.type_examen}`] || ""}
+                          onChange={e => setResultats(r => ({ ...r, [`${ex.categorie}:${ex.type_examen}`]: e.target.value }))}
+                          className="input-field text-sm flex-1"
+                          placeholder="Résultat si disponible..."
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3">

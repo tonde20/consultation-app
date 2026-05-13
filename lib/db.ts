@@ -86,14 +86,20 @@ export async function initDb() {
       notes TEXT,
       tension TEXT,
       temperature TEXT,
+      pouls TEXT,
       poids TEXT,
       taille TEXT,
       valide_jusqu TEXT,
       montant INTEGER DEFAULT 1250,
       type_prise_en_charge TEXT DEFAULT 'ambulatoire',
-      service_hospitalisation TEXT
+      service_hospitalisation TEXT,
+      date_sortie TEXT,
+      frais_hospitalisation INTEGER DEFAULT 0
     )
   `;
+  await sql`ALTER TABLE consultations ADD COLUMN IF NOT EXISTS pouls TEXT`;
+  await sql`ALTER TABLE consultations ADD COLUMN IF NOT EXISTS date_sortie TEXT`;
+  await sql`ALTER TABLE consultations ADD COLUMN IF NOT EXISTS frais_hospitalisation INTEGER DEFAULT 0`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS prescriptions (
@@ -109,11 +115,13 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS examens (
       id SERIAL PRIMARY KEY,
       consultation_id INTEGER NOT NULL REFERENCES consultations(id) ON DELETE CASCADE,
+      categorie TEXT DEFAULT 'autres',
       type_examen TEXT NOT NULL,
       description TEXT,
       resultat TEXT
     )
   `;
+  await sql`ALTER TABLE examens ADD COLUMN IF NOT EXISTS categorie TEXT DEFAULT 'autres'`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS rendez_vous (

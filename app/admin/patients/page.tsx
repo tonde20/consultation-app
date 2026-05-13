@@ -49,7 +49,7 @@ export default function PatientsPage() {
     const res = await fetch("/api/patients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
     const data = await res.json();
     if (res.ok) {
-      setMessage({ type: "success", text: `Patient créé. Code: ${data.code} — Mot de passe: ${data.code}` });
+      setMessage({ type: "success", text: `Patient créé. Code patient : ${data.code}` });
       setShowForm(false);
       setForm(emptyForm);
       fetchPatients();

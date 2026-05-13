@@ -326,6 +326,106 @@ export function genererCertificat(opts: {
   doc.save(`Certificat_${certificat.type}_${patient.code}_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
+// ── CERTIFICAT D'HOSPITALISATION ──────────────────────────
+export function genererCertificatHospitalisation(opts: {
+  etablissement: string;
+  patient: { prenom: string; nom: string; code: string; date_naissance?: string; sexe?: string };
+  consultation: {
+    id: number; date: string; date_sortie: string; diagnostic?: string; motif?: string;
+    service_hospitalisation?: string; doctor_nom: string; doctor_prenom: string;
+    frais_hospitalisation?: number;
+  };
+}) {
+  const { etablissement, patient, consultation } = opts;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const w = doc.internal.pageSize.getWidth();
+
+  const dateEntree = new Date(consultation.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const dateSortie = new Date(consultation.date_sortie).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  addHeader(doc, etablissement, "CERTIFICAT D'HOSPITALISATION", dateEntree);
+
+  let y = 36;
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Information', 'Détail']],
+    body: [
+      ['Patient', `${patient.prenom} ${patient.nom}`],
+      ['Code patient', patient.code],
+      ...(patient.date_naissance ? [['Date de naissance', new Date(patient.date_naissance).toLocaleDateString('fr-FR')]] : []),
+      ['Date d\'admission', dateEntree],
+      ['Date de sortie', dateSortie],
+      ...(consultation.service_hospitalisation ? [['Service', consultation.service_hospitalisation]] : []),
+      ...(consultation.diagnostic ? [['Diagnostic', consultation.diagnostic]] : []),
+    ],
+    styles: { fontSize: 9, cellPadding: 3, textColor: GRAY_DARK },
+    headStyles: { fillColor: GREEN, textColor: WHITE, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: GREEN_LIGHT },
+    columnStyles: { 0: { cellWidth: 50, fontStyle: 'bold' } },
+    margin: { left: 14, right: 14 },
+    theme: 'grid',
+  });
+  y = (doc as any).lastAutoTable.finalY + 10;
+
+  // Contenu du certificat
+  const civilite = patient.sexe === 'F' ? 'Mme' : 'M.';
+  const ageStr = patient.date_naissance
+    ? `, né(e) le ${new Date(patient.date_naissance).toLocaleDateString('fr-FR')}`
+    : '';
+  const serviceStr = consultation.service_hospitalisation ? ` au service de ${consultation.service_hospitalisation}` : '';
+  const diagStr = consultation.diagnostic ? ` pour ${consultation.diagnostic}` : '';
+
+  const contenu = `Je soussigné(e), Dr. ${consultation.doctor_prenom} ${consultation.doctor_nom}, certifie que ${civilite} ${patient.prenom} ${patient.nom}${ageStr}, a été hospitalisé(e) dans notre établissement${serviceStr}, du ${dateEntree} au ${dateSortie}${diagStr}.\n\nLe/la patient(e) a bénéficié de soins médicaux et infirmiers appropriés durant son séjour.\n\nLe présent certificat est établi à la demande de l'intéressé(e) pour servir et valoir ce que de droit.`;
+
+  const frameX = 14;
+  const frameW = w - 28;
+  const contentX = frameX + 8;
+  const contentW = frameW - 16;
+
+  const fontSize = 10.5;
+  const lineHeightMm = fontSize * 1.5 / 2.834;
+  doc.setFontSize(fontSize);
+  doc.setLineHeightFactor(1.5);
+  const paragraphs = contenu.split('\n\n');
+  const paragraphLines = paragraphs.map(p => doc.splitTextToSize(p.trim(), contentW));
+  const totalLines = paragraphLines.reduce((acc, pl, i) => acc + pl.length + (i < paragraphLines.length - 1 ? 1 : 0), 0);
+  const frameH = totalLines * lineHeightMm + 20;
+
+  doc.setDrawColor(...GREEN);
+  doc.setLineWidth(0.6);
+  doc.roundedRect(frameX, y, frameW, frameH, 3, 3, 'S');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...GRAY_DARK);
+  let textY = y + 12;
+  for (let pi = 0; pi < paragraphLines.length; pi++) {
+    doc.text(paragraphLines[pi], contentX, textY, { align: 'justify', maxWidth: contentW });
+    textY += paragraphLines[pi].length * lineHeightMm;
+    if (pi < paragraphLines.length - 1) textY += lineHeightMm;
+  }
+  doc.setLineHeightFactor(1.15);
+  y += frameH + 16;
+
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...GRAY_DARK);
+  doc.text(`Fait à Boromo, le ${new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}`, w - 14, y, { align: 'right' });
+  y += 20;
+
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.3);
+  doc.line(w - 80, y, w - 14, y);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...GRAY_MID);
+  doc.text(`Dr. ${consultation.doctor_prenom} ${consultation.doctor_nom}`, w - 47, y + 5, { align: 'center' });
+  doc.text('Signature et cachet', w - 47, y + 10, { align: 'center' });
+
+  addFooter(doc, etablissement);
+  doc.save(`Certificat_Hospitalisation_${patient.code}_${new Date().toISOString().split('T')[0]}.pdf`);
+}
+
 // ── RAPPORT CONSULTATIONS ─────────────────────────────────
 export function genererRapportConsultations(opts: {
   etablissement: string;
