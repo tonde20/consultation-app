@@ -241,94 +241,95 @@ export function genererCertificat(opts: {
   };
   signatureImg?: string;
 }) {
-  const { etablissement, patient, certificat, signatureImg } = opts;
+  const { etablissement, certificat, signatureImg } = opts;
   const doc = new jsPDF('p', 'mm', 'a4');
   const w = doc.internal.pageSize.getWidth();
+  const h = doc.internal.pageSize.getHeight();
+  const ml = 22;
+  const cw = w - ml * 2;
 
-  addHeader(doc, etablissement, `CERTIFICAT ${certificat.type.toUpperCase()}`,
-    new Date(certificat.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }));
-
-  let y = 36;
-
-  // ── Tableau patient ──────────────────────────────────────
-  autoTable(doc, {
-    startY: y,
-    head: [['Champ', 'Information']],
-    body: [
-      ['Nom complet', `${patient.prenom} ${patient.nom}`],
-      ['Code patient', patient.code],
-      ...(patient.date_naissance
-        ? [['Date de naissance', new Date(patient.date_naissance).toLocaleDateString('fr-FR')]]
-        : []),
-    ],
-    styles: { fontSize: 9, cellPadding: 3, textColor: GRAY_DARK },
-    headStyles: { fillColor: GREEN, textColor: WHITE, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: GREEN_LIGHT },
-    columnStyles: { 0: { cellWidth: 45, fontStyle: 'bold' } },
-    margin: { left: 14, right: 14 },
-    theme: 'grid',
-  });
-  y = (doc as any).lastAutoTable.finalY + 10;
-
-  // ── Contenu du certificat dans un cadre ──────────────────
-  const frameX = 14;
-  const frameW = w - 28;
-  const contentX = frameX + 8;
-  const contentW = frameW - 16;
-
-  // Calculer la hauteur du texte avec interligne 1.5 (gestion des paragraphes séparés par \n\n)
-  const fontSize = 10.5;
-  const lineHeightMm = fontSize * 1.5 / 2.834;
-  doc.setFontSize(fontSize);
-  doc.setLineHeightFactor(1.5);
-  const rawParagraphs = (certificat.contenu || '').split('\n\n');
-  const paragraphLines = rawParagraphs.map(p => doc.splitTextToSize(p.trim(), contentW));
-  const totalLineCount = paragraphLines.reduce((acc, pl, i) => acc + pl.length + (i < paragraphLines.length - 1 ? 1 : 0), 0);
-  const textHeight = totalLineCount * lineHeightMm;
-  const frameH = textHeight + 20;
-
-  // Dessiner le cadre
-  doc.setDrawColor(...GREEN);
-  doc.setLineWidth(0.6);
-  doc.roundedRect(frameX, y, frameW, frameH, 3, 3, 'S');
-
-  // Texte justifié dans le cadre, paragraphe par paragraphe
-  doc.setFont('helvetica', 'normal');
+  // ── En-tête établissement ────────────────────────────────
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
   doc.setTextColor(...GRAY_DARK);
-  let textY = y + 12;
-  for (let pi = 0; pi < paragraphLines.length; pi++) {
-    doc.text(paragraphLines[pi], contentX, textY, { align: 'justify', maxWidth: contentW });
-    textY += paragraphLines[pi].length * lineHeightMm;
-    if (pi < paragraphLines.length - 1) textY += lineHeightMm;
-  }
-  doc.setLineHeightFactor(1.15);
+  doc.text(etablissement.toUpperCase(), w / 2, 18, { align: 'center' });
+  doc.setDrawColor(...GRAY_MID);
+  doc.setLineWidth(0.5);
+  doc.line(ml, 23, w - ml, 23);
 
-  y += frameH + 16;
+  // ── Titre du certificat ──────────────────────────────────
+  const titre = `CERTIFICAT ${certificat.type.toUpperCase()}`;
+  doc.setFont('times', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...GRAY_DARK);
+  const titreW = doc.getTextWidth(titre);
+  const titreX = (w - titreW) / 2;
+  const titreY = 38;
+  doc.text(titre, titreX, titreY);
+  doc.setLineWidth(0.5);
+  doc.setDrawColor(...GRAY_DARK);
+  doc.line(titreX, titreY + 1.5, titreX + titreW, titreY + 1.5);
+
+  // ── Corps du certificat ───────────────────────────────────
+  let y = 56;
+  const fontSize = 11.5;
+  const lineH = fontSize * 0.352778 * 1.75; // ≈ 7.1 mm — interligne généreux
+  doc.setFont('times', 'normal');
+  doc.setFontSize(fontSize);
+  doc.setTextColor(...GRAY_DARK);
+
+  const paragraphs = (certificat.contenu || '').split('\n\n');
+  for (let pi = 0; pi < paragraphs.length; pi++) {
+    const subLines = paragraphs[pi].trim().split('\n');
+    for (const sub of subLines) {
+      if (!sub.trim()) { y += lineH * 0.5; continue; }
+      const wrapped = doc.splitTextToSize(sub.trim(), cw);
+      doc.text(wrapped, ml, y, { align: 'justify', maxWidth: cw });
+      y += wrapped.length * lineH;
+    }
+    if (pi < paragraphs.length - 1) y += lineH * 0.8;
+  }
 
   // ── Lieu et date ─────────────────────────────────────────
-  doc.setFontSize(9.5);
-  doc.setFont('helvetica', 'bold');
+  const dateStr = new Date(certificat.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  let sigZoneY = Math.max(y + 18, h - 68);
+
+  doc.setFont('times', 'normal');
+  doc.setFontSize(11);
   doc.setTextColor(...GRAY_DARK);
-  const lieu = `Fait à Boromo, le ${new Date(certificat.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}`;
-  doc.text(lieu, w - 14, y, { align: 'right' });
-  y += 20;
+  doc.text(`Fait à Boromo, le ${dateStr}`, w - ml, sigZoneY, { align: 'right' });
 
-  // ── Zone signature ───────────────────────────────────────
-  const sigY = y;
+  sigZoneY += 8;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('Le Médecin', w - ml, sigZoneY, { align: 'right' });
+  sigZoneY += 6;
+
   if (signatureImg) {
-    doc.addImage(signatureImg, 'PNG', w - 80, sigY - 20, 66, 18);
+    doc.addImage(signatureImg, 'PNG', w - ml - 66, sigZoneY, 66, 18);
+    sigZoneY += 20;
+  } else {
+    sigZoneY += 18;
   }
-  doc.setDrawColor(...BORDER);
-  doc.setLineWidth(0.3);
-  doc.line(w - 80, sigY, w - 14, sigY);
-  doc.setFontSize(8);
+  doc.setDrawColor(...GRAY_MID);
+  doc.setLineWidth(0.4);
+  doc.line(w - ml - 66, sigZoneY, w - ml, sigZoneY);
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
   doc.setTextColor(...GRAY_MID);
-  doc.text(`Dr. ${certificat.doctor_prenom} ${certificat.doctor_nom}`, w - 47, sigY + 5, { align: 'center' });
-  doc.text('Signature et cachet', w - 47, sigY + 10, { align: 'center' });
+  doc.text(`Dr. ${certificat.doctor_prenom} ${certificat.doctor_nom}`, w - ml - 33, sigZoneY + 5, { align: 'center' });
+  doc.text('Signature et cachet', w - ml - 33, sigZoneY + 10, { align: 'center' });
 
-  addFooter(doc, etablissement);
-  doc.save(`Certificat_${certificat.type}_${patient.code}_${new Date().toISOString().split('T')[0]}.pdf`);
+  // ── Pied de page ─────────────────────────────────────────
+  doc.setLineWidth(0.2);
+  doc.setDrawColor(...BORDER);
+  doc.line(ml, h - 12, w - ml, h - 12);
+  doc.setFontSize(7.5);
+  doc.setTextColor(...GRAY_MID);
+  doc.text(etablissement, ml, h - 7);
+  doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, w - ml, h - 7, { align: 'right' });
+
+  doc.save(`Certificat_${certificat.type}_${opts.patient.code}_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
 // ── CERTIFICAT D'HOSPITALISATION ──────────────────────────
@@ -680,121 +681,152 @@ export function genererCertificatVisite(opts: {
   const { etablissement, patient, visite, contre, signatureImg } = opts;
   const doc = new jsPDF('p', 'mm', 'a4');
   const w = doc.internal.pageSize.getWidth();
+  const h = doc.internal.pageSize.getHeight();
+  const ml = 22;
+  const cw = w - ml * 2;
   const dateJour = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
   const dateFile = new Date().toISOString().split('T')[0];
   const dateNaissance = patient.date_naissance
     ? new Date(patient.date_naissance).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
     : '—';
+  const lineH = 11 * 0.352778 * 1.7; // ≈ 6.6 mm
 
-  // ── Petit en-tête établissement ──────────────────────────
-  doc.setFillColor(...GREEN);
-  doc.rect(0, 0, w, 16, 'F');
-  doc.setTextColor(...WHITE);
+  // ── En-tête établissement ────────────────────────────────
   doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(...GRAY_DARK);
+  doc.text(etablissement.toUpperCase(), w / 2, 14, { align: 'center' });
+  doc.setDrawColor(...GRAY_MID);
+  doc.setLineWidth(0.4);
+  doc.line(ml, 18, w - ml, 18);
+
+  let y = 28;
+
+  // ── SECTION 1 : VISITE MÉDICALE ───────────────────────────
+  // Titre encadré simple
+  const titre1 = 'CERTIFICAT DE VISITE MÉDICALE';
+  doc.setFont('times', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(...GRAY_DARK);
+  const t1W = doc.getTextWidth(titre1);
+  const t1X = (w - t1W) / 2;
+  doc.text(titre1, t1X, y);
+  doc.setLineWidth(0.4);
+  doc.setDrawColor(...GRAY_DARK);
+  doc.line(t1X, y + 1.5, t1X + t1W, y + 1.5);
+  y += 12;
+
+  doc.setFont('times', 'normal');
   doc.setFontSize(11);
-  doc.text(etablissement.toUpperCase(), w / 2, 10, { align: 'center' });
   doc.setTextColor(...GRAY_DARK);
 
-  let y = 22;
-
-  // ── Section VISITE ───────────────────────────────────────
-  // Titre en cadre
-  doc.setFillColor(...GREEN_LIGHT);
-  doc.setDrawColor(...GREEN);
-  doc.setLineWidth(0.6);
-  doc.roundedRect(14, y, w - 28, 10, 2, 2, 'FD');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(...GREEN);
-  doc.text('CERTIFICAT DE VISITE MÉDICALE', w / 2, y + 7, { align: 'center' });
-  doc.setTextColor(...GRAY_DARK);
-  y += 14;
-
-  const lineH = 6;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
-
-  const visitelines: string[] = [
-    `Nous soussigné Dr. ${visite.doctor_prenom} ${visite.doctor_nom}, Qualification : ${visite.qualification}`,
+  const visiteLines = [
+    `Nous soussigné Dr. ${visite.doctor_prenom} ${visite.doctor_nom}`,
+    `Qualification : ${visite.qualification || '—'}`,
     `Certifions que ${patient.prenom} ${patient.nom}`,
     `Né(e) le ${dateNaissance}`,
     `Ne présente actuellement aucune infection contagieuse cliniquement et radiologiquement décelable et il(elle) est indemne de toute infection tuberculose, cancéreuse, nerveuse ou lépreuse.`,
-    `Radio : ${visite.radio}   BW : ${visite.bw}`,
-    `Acuité visuelle sans correction : OD ${visite.acuite_od}   OG ${visite.acuite_og}   Bégaiement : ${visite.begaiement}   Surdité : ${visite.surdite}`,
+    `Radio : ${visite.radio}     B.W : ${visite.bw}`,
+    `Acuité visuelle sans correction :  OD ${visite.acuite_od || '—'}     OG ${visite.acuite_og || '—'}     Bégaiement : ${visite.begaiement}     Surdité : ${visite.surdite}`,
     `En conséquence, estimons qu'il/elle est apte ${visite.apte_pour}`,
-    `Fait à Boromo, le ${dateJour}`,
   ];
-
-  const contentW = w - 28 - 16;
-  for (const line of visitelines) {
-    const wrapped = doc.splitTextToSize(line, contentW);
-    doc.text(wrapped, 22, y);
+  for (const line of visiteLines) {
+    const wrapped = doc.splitTextToSize(line, cw);
+    doc.text(wrapped, ml, y, { align: 'justify', maxWidth: cw });
     y += wrapped.length * lineH;
   }
 
-  // Signature visite
+  // Date + signature visite
   y += 4;
-  if (signatureImg) {
-    doc.addImage(signatureImg, 'PNG', w - 80, y - 2, 66, 18);
-    y += 18;
-  }
-  doc.setDrawColor(...BORDER);
-  doc.setLineWidth(0.3);
-  doc.line(w - 80, y, w - 14, y);
-  doc.setFontSize(8);
-  doc.setTextColor(...GRAY_MID);
-  doc.text(`Dr. ${visite.doctor_prenom} ${visite.doctor_nom}`, w - 47, y + 5, { align: 'center' });
-  doc.text('Signature et cachet', w - 47, y + 10, { align: 'center' });
-  doc.setTextColor(...GRAY_DARK);
-  y += 16;
-
-  // ── Séparateur ───────────────────────────────────────────
-  doc.setDrawColor(...GRAY_MID);
-  doc.setLineWidth(0.4);
-  doc.setLineDashPattern([3, 2], 0);
-  doc.line(14, y, w - 14, y);
-  doc.setLineDashPattern([], 0);
-  y += 8;
-
-  // ── Section CONTRE-VISITE ────────────────────────────────
-  doc.setFillColor(...TEAL_LIGHT);
-  doc.setDrawColor(...TEAL);
-  doc.setLineWidth(0.6);
-  doc.roundedRect(14, y, w - 28, 10, 2, 2, 'FD');
+  doc.setFont('times', 'normal');
+  doc.setFontSize(11);
+  doc.text(`Fait à Boromo, le ${dateJour}`, w - ml, y, { align: 'right' });
+  y += 7;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.setTextColor(...TEAL);
-  doc.text('CERTIFICAT DE CONTRE-VISITE MÉDICALE', w / 2, y + 7, { align: 'center' });
-  doc.setTextColor(...GRAY_DARK);
-  y += 14;
-
+  doc.text('Le Médecin', w - ml, y, { align: 'right' });
+  y += 5;
+  if (signatureImg) {
+    doc.addImage(signatureImg, 'PNG', w - ml - 66, y, 66, 18);
+    y += 20;
+  } else {
+    y += 16;
+  }
+  doc.setDrawColor(...GRAY_MID);
+  doc.setLineWidth(0.4);
+  doc.line(w - ml - 66, y, w - ml, y);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
+  doc.setFontSize(9);
+  doc.setTextColor(...GRAY_MID);
+  doc.text(`Dr. ${visite.doctor_prenom} ${visite.doctor_nom}`, w - ml - 33, y + 5, { align: 'center' });
+  doc.text('Signature et cachet', w - ml - 33, y + 10, { align: 'center' });
+  doc.setTextColor(...GRAY_DARK);
+  y += 18;
 
-  const contrelines: string[] = [
+  // ── Séparateur tirets ─────────────────────────────────────
+  doc.setDrawColor(...GRAY_MID);
+  doc.setLineWidth(0.4);
+  doc.setLineDashPattern([4, 3], 0);
+  doc.line(ml, y, w - ml, y);
+  doc.setLineDashPattern([], 0);
+  y += 10;
+
+  // ── SECTION 2 : CONTRE-VISITE ─────────────────────────────
+  const titre2 = 'CERTIFICAT DE CONTRE-VISITE MÉDICALE';
+  doc.setFont('times', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(...GRAY_DARK);
+  const t2W = doc.getTextWidth(titre2);
+  const t2X = (w - t2W) / 2;
+  doc.text(titre2, t2X, y);
+  doc.setLineWidth(0.4);
+  doc.setDrawColor(...GRAY_DARK);
+  doc.line(t2X, y + 1.5, t2X + t2W, y + 1.5);
+  y += 12;
+
+  doc.setFont('times', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(...GRAY_DARK);
+
+  const contreLines = [
     `Nous soussigné Dr. ${contre.doctor_prenom} ${contre.doctor_nom}`,
     `Certifions que ${patient.prenom} ${patient.nom}`,
     `Est indemne de toute infection contagieuse cliniquement et radiologiquement décelable et il(elle) est indemne de toute infection tuberculose, cancéreuse, nerveuse ou lépreuse.`,
     `En conséquence, estimons qu'il/elle est apte ${contre.apte_pour}`,
-    `Fait à Boromo, le ${dateJour}`,
   ];
-
-  for (const line of contrelines) {
-    const wrapped = doc.splitTextToSize(line, contentW);
-    doc.text(wrapped, 22, y);
+  for (const line of contreLines) {
+    const wrapped = doc.splitTextToSize(line, cw);
+    doc.text(wrapped, ml, y, { align: 'justify', maxWidth: cw });
     y += wrapped.length * lineH;
   }
 
-  // Signature contre-visite
+  // Date + signature contre-visite
   y += 4;
-  doc.setDrawColor(...BORDER);
-  doc.setLineWidth(0.3);
-  doc.line(w - 80, y, w - 14, y);
-  doc.setFontSize(8);
+  doc.setFont('times', 'normal');
+  doc.setFontSize(11);
+  doc.text(`Fait à Boromo, le ${dateJour}`, w - ml, y, { align: 'right' });
+  y += 7;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('Le Médecin', w - ml, y, { align: 'right' });
+  y += 21;
+  doc.setDrawColor(...GRAY_MID);
+  doc.setLineWidth(0.4);
+  doc.line(w - ml - 66, y, w - ml, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
   doc.setTextColor(...GRAY_MID);
-  doc.text(`Dr. ${contre.doctor_prenom} ${contre.doctor_nom}`, w - 47, y + 5, { align: 'center' });
-  doc.text('Signature et cachet', w - 47, y + 10, { align: 'center' });
+  doc.text(`Dr. ${contre.doctor_prenom} ${contre.doctor_nom}`, w - ml - 33, y + 5, { align: 'center' });
+  doc.text('Signature et cachet', w - ml - 33, y + 10, { align: 'center' });
 
-  addFooter(doc, etablissement);
+  // ── Pied de page ─────────────────────────────────────────
+  doc.setLineWidth(0.2);
+  doc.setDrawColor(...BORDER);
+  doc.line(ml, h - 12, w - ml, h - 12);
+  doc.setFontSize(7.5);
+  doc.setTextColor(...GRAY_MID);
+  doc.text(etablissement, ml, h - 7);
+  doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, w - ml, h - 7, { align: 'right' });
+
   doc.save(`Visite_${patient.code}_${dateFile}.pdf`);
 }
