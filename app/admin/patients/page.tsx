@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 interface Patient {
@@ -26,6 +26,14 @@ export default function PatientsPage() {
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [confirmDelete, setConfirmDelete] = useState<Patient | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const copyCode = useCallback((code: string) => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(null), 2000);
+    });
+  }, []);
 
   const fetchPatients = (q = "") => {
     setLoading(true);
@@ -191,7 +199,18 @@ export default function PatientsPage() {
               <tbody>
                 {patients.map(p => (
                   <tr key={p.id} className={`border-b hover:bg-gray-50 ${p.decede ? "bg-red-50/40 border-red-100" : "border-gray-50"}`}>
-                    <td className="py-3 px-3 font-mono text-xs text-primary-700">{p.code}</td>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded">{p.code}</span>
+                        <button
+                          onClick={() => copyCode(p.code)}
+                          title="Copier le code"
+                          className={`text-xs px-1.5 py-0.5 rounded transition-colors ${copiedCode === p.code ? "bg-green-100 text-green-700" : "text-gray-400 hover:text-primary-600 hover:bg-primary-50"}`}
+                        >
+                          {copiedCode === p.code ? "✓" : "⎘"}
+                        </button>
+                      </div>
+                    </td>
                     <td className="py-3 px-3 font-medium">
                       <span className={p.decede ? "text-gray-400 line-through decoration-red-400" : ""}>{p.prenom} {p.nom}</span>
                       {p.decede === 1 && (

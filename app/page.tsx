@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { initDb, dbGet } from "@/lib/db";
 import Link from "next/link";
-import LogoCMA from "@/app/components/LogoCMA";
 
 export default async function HomePage() {
   const session = getSession();
@@ -43,13 +42,8 @@ export default async function HomePage() {
 
       {/* ── Navbar ── */}
       <nav className="relative z-10 flex items-center justify-between px-8 py-4 border-b border-white/5 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl overflow-hidden shadow-lg flex-shrink-0" style={{ background: "linear-gradient(135deg,#16a34a,#0d9488)" }}>
-            <LogoCMA />
-          </div>
-          <span className="font-bold text-white/80 text-sm tracking-wide">{etablissement}</span>
-        </div>
-        <p className="text-white/30 text-xs uppercase tracking-[0.2em] hidden sm:block">Système de gestion des consultations</p>
+        <p className="font-bold text-white/70 text-sm uppercase tracking-[0.18em]">Service de consultation médecin</p>
+        <p className="text-white/25 text-xs uppercase tracking-[0.2em] hidden sm:block">Système de gestion des consultations</p>
       </nav>
 
       {/* ── Titre centré ── */}
@@ -66,18 +60,18 @@ export default async function HomePage() {
       <div className="relative z-10 flex-1 flex items-stretch px-6 md:px-14 pb-6 gap-8 overflow-hidden">
 
         {/* Colonne gauche — Serment d'Hippocrate */}
-        <div className="flex-1 flex flex-col justify-center">
+        <div className="flex-1 flex flex-col justify-center pt-6">
           <div
             className="relative rounded-3xl p-8 border border-white/10 h-full flex flex-col justify-center"
             style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)" }}
           >
             {/* Badge */}
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
               <div
                 className="px-5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest border border-primary-500/40"
                 style={{ background: "rgba(22,101,52,0.6)", color: "#86efac", backdropFilter: "blur(8px)" }}
               >
-                Serment d'Hippocrate
+                Extrait du serment d'Hippocrate
               </div>
             </div>
 
