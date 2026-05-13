@@ -159,7 +159,9 @@ async function seedData() {
   const setting = await dbGet('SELECT value FROM settings WHERE key = $1', ['etablissement_nom']);
   if (setting) return;
 
-  await sql`INSERT INTO settings (key, value) VALUES ('etablissement_nom', 'CMA de Boromo') ON CONFLICT DO NOTHING`;
+  await sql`INSERT INTO settings (key, value) VALUES ('etablissement_nom', 'HOPITAL DE DISTRICT DE BOROMO') ON CONFLICT DO NOTHING`;
+  // Migration : mise à jour du nom si encore à l'ancienne valeur par défaut
+  await sql`UPDATE settings SET value = 'HOPITAL DE DISTRICT DE BOROMO' WHERE key = 'etablissement_nom' AND value IN ('CMA de Boromo','CMA DE BOROMO')`;
   await sql`INSERT INTO settings (key, value) VALUES ('consultation_frais', '1250') ON CONFLICT DO NOTHING`;
   await sql`INSERT INTO settings (key, value) VALUES ('certificat_frais', '2000') ON CONFLICT DO NOTHING`;
   await sql`INSERT INTO settings (key, value) VALUES ('consultation_validite_jours', '10') ON CONFLICT DO NOTHING`;
