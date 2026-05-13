@@ -376,20 +376,6 @@ export default function PatientDossierPage() {
                   })()}
                 </div>
               )}
-              {selectedConsult.prescriptions.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-primary-600 uppercase tracking-wide mb-2">Prescriptions ({selectedConsult.prescriptions.length})</p>
-                  <div className="space-y-1.5">
-                    {selectedConsult.prescriptions.map(p => (
-                      <div key={p.id} className="bg-primary-50 border border-primary-100 px-3 py-2 rounded-lg text-sm">
-                        <span className="font-medium text-primary-800">{p.medicament}</span>
-                        {p.posologie && <span className="text-gray-600"> — {p.posologie}</span>}
-                        {p.duree && <span className="text-gray-400 text-xs"> ({p.duree})</span>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
               {selectedConsult.examens.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide mb-2">Examens prescrits ({selectedConsult.examens.length})</p>
@@ -408,6 +394,20 @@ export default function PatientDossierPage() {
                 <div className="bg-primary-50 border border-primary-200 rounded-xl px-4 py-3">
                   <p className="text-xs font-semibold text-primary-600 uppercase tracking-wide mb-1">Diagnostic</p>
                   <p className="text-primary-900 font-semibold text-sm">{selectedConsult.diagnostic}</p>
+                </div>
+              )}
+              {selectedConsult.prescriptions.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-primary-600 uppercase tracking-wide mb-2">Prescriptions ({selectedConsult.prescriptions.length})</p>
+                  <div className="space-y-1.5">
+                    {selectedConsult.prescriptions.map(p => (
+                      <div key={p.id} className="bg-primary-50 border border-primary-100 px-3 py-2 rounded-lg text-sm">
+                        <span className="font-medium text-primary-800">{p.medicament}</span>
+                        {p.posologie && <span className="text-gray-600"> — {p.posologie}</span>}
+                        {p.duree && <span className="text-gray-400 text-xs"> ({p.duree})</span>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -849,32 +849,10 @@ export default function PatientDossierPage() {
             </div>
           </div>
 
-          {consultForm.type_prise_en_charge === "ambulatoire" && (
-            <div className="card">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-700 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-xs font-bold">3</span>
-                  Prescriptions
-                </h3>
-                <button type="button" onClick={() => setConsultForm(f => ({ ...f, prescriptions: [...f.prescriptions, { medicament: "", posologie: "", duree: "" }] }))} className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">+ Ajouter</button>
-              </div>
-              <div className="space-y-2">
-                {consultForm.prescriptions.map((p, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                    <input type="text" value={p.medicament} onChange={e => { const a = [...consultForm.prescriptions]; a[i].medicament = e.target.value; setConsultForm(f => ({ ...f, prescriptions: a })); }} className="input-field col-span-4" placeholder="Médicament" />
-                    <input type="text" value={p.posologie} onChange={e => { const a = [...consultForm.prescriptions]; a[i].posologie = e.target.value; setConsultForm(f => ({ ...f, prescriptions: a })); }} className="input-field col-span-4" placeholder="Posologie" />
-                    <input type="text" value={p.duree} onChange={e => { const a = [...consultForm.prescriptions]; a[i].duree = e.target.value; setConsultForm(f => ({ ...f, prescriptions: a })); }} className="input-field col-span-3" placeholder="Durée" />
-                    {i > 0 && <button type="button" onClick={() => setConsultForm(f => ({ ...f, prescriptions: f.prescriptions.filter((_, j) => j !== i) }))} className="text-red-400 hover:text-red-600 col-span-1 text-center text-lg">×</button>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Examens structurés 3 étapes */}
           <div className="card">
             <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-xs font-bold">{consultForm.type_prise_en_charge === "ambulatoire" ? "4" : "3"}</span>
+              <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-xs font-bold">3</span>
               Examens complémentaires
             </h3>
 
@@ -1003,10 +981,10 @@ export default function PatientDossierPage() {
             )}
           </div>
 
-          {/* Diagnostic — en dernier après l'examen clinique et les bilans */}
+          {/* Diagnostic — après l'examen clinique et les bilans */}
           <div className="card border-l-4 border-l-teal-500">
             <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-xs font-bold">{consultForm.type_prise_en_charge === "ambulatoire" ? "5" : "4"}</span>
+              <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-xs font-bold">4</span>
               Diagnostic
             </h3>
             <input
@@ -1017,6 +995,28 @@ export default function PatientDossierPage() {
               placeholder="Paludisme simple, Pneumonie, HTA, Grippe..."
             />
           </div>
+
+          {consultForm.type_prise_en_charge === "ambulatoire" && (
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-700 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-xs font-bold">5</span>
+                  Prescriptions
+                </h3>
+                <button type="button" onClick={() => setConsultForm(f => ({ ...f, prescriptions: [...f.prescriptions, { medicament: "", posologie: "", duree: "" }] }))} className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">+ Ajouter</button>
+              </div>
+              <div className="space-y-2">
+                {consultForm.prescriptions.map((p, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                    <input type="text" value={p.medicament} onChange={e => { const a = [...consultForm.prescriptions]; a[i].medicament = e.target.value; setConsultForm(f => ({ ...f, prescriptions: a })); }} className="input-field col-span-4" placeholder="Médicament" />
+                    <input type="text" value={p.posologie} onChange={e => { const a = [...consultForm.prescriptions]; a[i].posologie = e.target.value; setConsultForm(f => ({ ...f, prescriptions: a })); }} className="input-field col-span-4" placeholder="Posologie" />
+                    <input type="text" value={p.duree} onChange={e => { const a = [...consultForm.prescriptions]; a[i].duree = e.target.value; setConsultForm(f => ({ ...f, prescriptions: a })); }} className="input-field col-span-3" placeholder="Durée" />
+                    {i > 0 && <button type="button" onClick={() => setConsultForm(f => ({ ...f, prescriptions: f.prescriptions.filter((_, j) => j !== i) }))} className="text-red-400 hover:text-red-600 col-span-1 text-center text-lg">×</button>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <button type="submit" className="btn-primary px-8">Enregistrer la consultation</button>
