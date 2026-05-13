@@ -239,8 +239,9 @@ export function genererCertificat(opts: {
     doctor_prenom: string;
     doctor_nom: string;
   };
+  signatureImg?: string;
 }) {
-  const { etablissement, patient, certificat } = opts;
+  const { etablissement, patient, certificat, signatureImg } = opts;
   const doc = new jsPDF('p', 'mm', 'a4');
   const w = doc.internal.pageSize.getWidth();
 
@@ -313,14 +314,18 @@ export function genererCertificat(opts: {
   y += 20;
 
   // ── Zone signature ───────────────────────────────────────
+  const sigY = y;
+  if (signatureImg) {
+    doc.addImage(signatureImg, 'PNG', w - 80, sigY - 20, 66, 18);
+  }
   doc.setDrawColor(...BORDER);
   doc.setLineWidth(0.3);
-  doc.line(w - 80, y, w - 14, y);
+  doc.line(w - 80, sigY, w - 14, sigY);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...GRAY_MID);
-  doc.text(`Dr. ${certificat.doctor_prenom} ${certificat.doctor_nom}`, w - 47, y + 5, { align: 'center' });
-  doc.text('Signature et cachet', w - 47, y + 10, { align: 'center' });
+  doc.text(`Dr. ${certificat.doctor_prenom} ${certificat.doctor_nom}`, w - 47, sigY + 5, { align: 'center' });
+  doc.text('Signature et cachet', w - 47, sigY + 10, { align: 'center' });
 
   addFooter(doc, etablissement);
   doc.save(`Certificat_${certificat.type}_${patient.code}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -653,4 +658,143 @@ export function genererRapportRecettes(opts: {
 
   addFooter(doc, etablissement);
   doc.save(`Rapport_Recettes_${new Date().toISOString().split('T')[0]}.pdf`);
+}
+
+// ── CERTIFICAT DE VISITE MÉDICALE ─────────────────────────
+export function genererCertificatVisite(opts: {
+  etablissement: string;
+  patient: { prenom: string; nom: string; code: string; date_naissance?: string };
+  visite: {
+    doctor_prenom: string; doctor_nom: string; qualification: string;
+    radio: string; bw: string;
+    acuite_od: string; acuite_og: string;
+    begaiement: string; surdite: string;
+    apte_pour: string;
+  };
+  contre: {
+    doctor_prenom: string; doctor_nom: string;
+    apte_pour: string;
+  };
+  signatureImg?: string;
+}) {
+  const { etablissement, patient, visite, contre, signatureImg } = opts;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const w = doc.internal.pageSize.getWidth();
+  const dateJour = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const dateFile = new Date().toISOString().split('T')[0];
+  const dateNaissance = patient.date_naissance
+    ? new Date(patient.date_naissance).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+    : '—';
+
+  // ── Petit en-tête établissement ──────────────────────────
+  doc.setFillColor(...GREEN);
+  doc.rect(0, 0, w, 16, 'F');
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text(etablissement.toUpperCase(), w / 2, 10, { align: 'center' });
+  doc.setTextColor(...GRAY_DARK);
+
+  let y = 22;
+
+  // ── Section VISITE ───────────────────────────────────────
+  // Titre en cadre
+  doc.setFillColor(...GREEN_LIGHT);
+  doc.setDrawColor(...GREEN);
+  doc.setLineWidth(0.6);
+  doc.roundedRect(14, y, w - 28, 10, 2, 2, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...GREEN);
+  doc.text('CERTIFICAT DE VISITE MÉDICALE', w / 2, y + 7, { align: 'center' });
+  doc.setTextColor(...GRAY_DARK);
+  y += 14;
+
+  const lineH = 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+
+  const visitelines: string[] = [
+    `Nous soussigné Dr. ${visite.doctor_prenom} ${visite.doctor_nom}, Qualification : ${visite.qualification}`,
+    `Certifions que ${patient.prenom} ${patient.nom}`,
+    `Né(e) le ${dateNaissance}`,
+    `Ne présente actuellement aucune infection contagieuse cliniquement et radiologiquement décelable et il(elle) est indemne de toute infection tuberculose, cancéreuse, nerveuse ou lépreuse.`,
+    `Radio : ${visite.radio}   BW : ${visite.bw}`,
+    `Acuité visuelle sans correction : OD ${visite.acuite_od}   OG ${visite.acuite_og}   Bégaiement : ${visite.begaiement}   Surdité : ${visite.surdite}`,
+    `En conséquence, estimons qu'il/elle est apte ${visite.apte_pour}`,
+    `Fait à Boromo, le ${dateJour}`,
+  ];
+
+  const contentW = w - 28 - 16;
+  for (const line of visitelines) {
+    const wrapped = doc.splitTextToSize(line, contentW);
+    doc.text(wrapped, 22, y);
+    y += wrapped.length * lineH;
+  }
+
+  // Signature visite
+  y += 4;
+  if (signatureImg) {
+    doc.addImage(signatureImg, 'PNG', w - 80, y - 2, 66, 18);
+    y += 18;
+  }
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.3);
+  doc.line(w - 80, y, w - 14, y);
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAY_MID);
+  doc.text(`Dr. ${visite.doctor_prenom} ${visite.doctor_nom}`, w - 47, y + 5, { align: 'center' });
+  doc.text('Signature et cachet', w - 47, y + 10, { align: 'center' });
+  doc.setTextColor(...GRAY_DARK);
+  y += 16;
+
+  // ── Séparateur ───────────────────────────────────────────
+  doc.setDrawColor(...GRAY_MID);
+  doc.setLineWidth(0.4);
+  doc.setLineDashPattern([3, 2], 0);
+  doc.line(14, y, w - 14, y);
+  doc.setLineDashPattern([], 0);
+  y += 8;
+
+  // ── Section CONTRE-VISITE ────────────────────────────────
+  doc.setFillColor(...TEAL_LIGHT);
+  doc.setDrawColor(...TEAL);
+  doc.setLineWidth(0.6);
+  doc.roundedRect(14, y, w - 28, 10, 2, 2, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...TEAL);
+  doc.text('CERTIFICAT DE CONTRE-VISITE MÉDICALE', w / 2, y + 7, { align: 'center' });
+  doc.setTextColor(...GRAY_DARK);
+  y += 14;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+
+  const contrelines: string[] = [
+    `Nous soussigné Dr. ${contre.doctor_prenom} ${contre.doctor_nom}`,
+    `Certifions que ${patient.prenom} ${patient.nom}`,
+    `Est indemne de toute infection contagieuse cliniquement et radiologiquement décelable et il(elle) est indemne de toute infection tuberculose, cancéreuse, nerveuse ou lépreuse.`,
+    `En conséquence, estimons qu'il/elle est apte ${contre.apte_pour}`,
+    `Fait à Boromo, le ${dateJour}`,
+  ];
+
+  for (const line of contrelines) {
+    const wrapped = doc.splitTextToSize(line, contentW);
+    doc.text(wrapped, 22, y);
+    y += wrapped.length * lineH;
+  }
+
+  // Signature contre-visite
+  y += 4;
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.3);
+  doc.line(w - 80, y, w - 14, y);
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAY_MID);
+  doc.text(`Dr. ${contre.doctor_prenom} ${contre.doctor_nom}`, w - 47, y + 5, { align: 'center' });
+  doc.text('Signature et cachet', w - 47, y + 10, { align: 'center' });
+
+  addFooter(doc, etablissement);
+  doc.save(`Visite_${patient.code}_${dateFile}.pdf`);
 }

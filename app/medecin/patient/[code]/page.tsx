@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { genererOrdonnance, genererExamens, genererCertificat } from "@/lib/pdf";
+import { genererOrdonnance, genererExamens, genererCertificat, genererCertificatVisite } from "@/lib/pdf";
 
 interface Prescription { id: number; medicament: string; posologie: string; duree: string; }
 interface Examen { id: number; categorie: string; type_examen: string; description: string; resultat: string; }
@@ -78,9 +78,32 @@ export default function PatientDossierPage() {
     cause_deces: "sa maladie",
     cause_autres: "",
     activite_sportive: "la pratique des activités sportives",
+    etablissement_frequente: "",
+    classe: "",
+    candidat_au: "",
+    session_exam: "",
+    duree_inaptitude: "",
+    mois_grossesse: "",
+    monsieur_prenom: "",
+    monsieur_nom: "",
+    mademoiselle_prenom: "",
+    mademoiselle_nom: "",
+    qualification: "",
+    radio: "Néant",
+    bw: "Néant",
+    acuite_od: "",
+    acuite_og: "",
+    begaiement: "Néant",
+    surdite: "Néant",
+    apte_pour: "Complément de dossier",
+    contre_doctor_id: "",
+    contre_apte_pour: "Complément de dossier",
   });
 
   const [rdvForm, setRdvForm] = useState({ doctor_id: "", date_heure: "", motif: "" });
+  const [signatureData, setSignatureData] = useState<string>("");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawingRef = useRef(false);
   const [editingAntecedents, setEditingAntecedents] = useState(false);
   const [antForm, setAntForm] = useState({ antecedents_medicaux: "", antecedents_chirurgicaux: "" });
 
@@ -289,6 +312,28 @@ export default function PatientDossierPage() {
         : certForm.cause_deces;
       return `Je soussigné(e), ${doctorName}, certifie avoir constaté ce jour le décès de ${civilite} ${nomPrenom}, né(e) le ${dateNaissance}, survenu le ${dateDeces} à ${heureDeces}, à ${lieuDeces} des suites de ${cause}.\n\nAucun obstacle médico-légal à l'inhumation n'a été constaté.`;
     }
+    if (certForm.type === "Inaptitude") {
+      const dateJour = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+      const dateNaissance = data?.patient.date_naissance
+        ? new Date(data.patient.date_naissance).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+        : '…';
+      const { etablissement_frequente, classe, candidat_au, session_exam, duree_inaptitude } = certForm;
+      return `Je soussigné(e), ${doctorName}, Médecin au service médico-scolaire du District Sanitaire de Boromo, certifie avoir examiné : ${data?.patient.prenom} ${data?.patient.nom}, Né(e) le ${dateNaissance} à Boromo.\n\nEtablissement fréquenté : ${etablissement_frequente || '………………………………'}\nClasse : ${classe || '……………………'} — Candidat(e) au : ${candidat_au || '……………………………'}\nSession : ${session_exam || '……………………………………………………'}\n\nEt déclare que l'intéressé(e) est inapte aux épreuves sportives pour une durée de : ${duree_inaptitude || '……………………………………'}\n\nEn foi de quoi ce présent certificat est délivré pour servir et valoir ce que de droit.`;
+    }
+    if (certForm.type === "Grossesse") {
+      const civilite = data?.patient.sexe === 'F' ? 'Mme' : 'M.';
+      const dateJour = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+      const dateNaissance = data?.patient.date_naissance
+        ? new Date(data.patient.date_naissance).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+        : '…';
+      return `Je soussigné(e), ${doctorName}, certifie que ${civilite} ${data?.patient.prenom} ${data?.patient.nom}, née le ${dateNaissance}, est actuellement enceinte de ${certForm.mois_grossesse || '…'} mois environ, d'après l'examen clinique pratiqué ce ${dateJour}.\n\nEn foi de quoi ce présent certificat est délivré pour servir et valoir ce que de droit.`;
+    }
+    if (certForm.type === "Prénuptial") {
+      return "";
+    }
+    if (certForm.type === "Visite") {
+      return "";
+    }
     return certForm.contenu;
   };
 
@@ -301,6 +346,76 @@ export default function PatientDossierPage() {
     const doctorName = user.nom.replace('Dr. ', '');
     const doctor_prenom = doctorName.split(' ')[0];
     const doctor_nom = doctorName.split(' ').slice(1).join(' ');
+    const dateJour = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    if (certForm.type === "Visite") {
+      const contreDoctor = doctors.find(d => String(d.id) === certForm.contre_doctor_id);
+      const res = await fetch("/api/certificats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patient_id: data.patient.id, type: certForm.type, contenu: "Certificat de visite médicale" }),
+      });
+      if (res.ok) {
+        setMessage({ type: "success", text: "Certificat de visite créé. Génération du PDF..." });
+        genererCertificatVisite({
+          etablissement,
+          patient: data.patient,
+          visite: {
+            doctor_prenom,
+            doctor_nom,
+            qualification: certForm.qualification,
+            radio: certForm.radio,
+            bw: certForm.bw,
+            acuite_od: certForm.acuite_od,
+            acuite_og: certForm.acuite_og,
+            begaiement: certForm.begaiement,
+            surdite: certForm.surdite,
+            apte_pour: certForm.apte_pour,
+          },
+          contre: {
+            doctor_prenom: contreDoctor?.prenom || "",
+            doctor_nom: contreDoctor?.nom || "",
+            apte_pour: certForm.contre_apte_pour,
+          },
+          signatureImg: signatureData || undefined,
+        });
+        setCertForm({ type: "Médical", contenu: "", nb_jours: "", date_debut: "", date_fin: "", date_deces: "", heure_deces: "", lieu_deces: "", cause_deces: "sa maladie", cause_autres: "", activite_sportive: "la pratique des activités sportives", etablissement_frequente: "", classe: "", candidat_au: "", session_exam: "", duree_inaptitude: "", mois_grossesse: "", monsieur_prenom: "", monsieur_nom: "", mademoiselle_prenom: "", mademoiselle_nom: "", qualification: "", radio: "Néant", bw: "Néant", acuite_od: "", acuite_og: "", begaiement: "Néant", surdite: "Néant", apte_pour: "Complément de dossier", contre_doctor_id: "", contre_apte_pour: "Complément de dossier" });
+        setSignatureData("");
+        setupCanvas();
+        const updated = await fetch(`/api/patients/${code}`);
+        if (updated.ok) setData(await updated.json());
+      } else {
+        setMessage({ type: "error", text: "Erreur" });
+      }
+      return;
+    }
+
+    if (certForm.type === "Prénuptial") {
+      const contenu = `Je soussigné(e), Dr. ${doctorName}, certifie avoir examiné ce jour ${dateJour} :\n\nMonsieur ${certForm.monsieur_prenom} ${certForm.monsieur_nom}\nEt Mademoiselle ${certForm.mademoiselle_prenom} ${certForm.mademoiselle_nom}\n\nEn vue de mariage, après avoir pris connaissance des examens sérologies pour le dépistage du VIH, Ag HBs, HCV, de la Syphilis, de l'électrophorèse de l'hémoglobine et de groupe sanguin Rhésus, avoir fait part de mes constatations à l'intéressé(e).\n\nEn foi de quoi ce présent certificat est délivré pour servir et valoir ce que de droit.`;
+      const res = await fetch("/api/certificats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patient_id: data.patient.id, type: certForm.type, contenu }),
+      });
+      if (res.ok) {
+        setMessage({ type: "success", text: "Certificat prénuptial créé. Génération du PDF..." });
+        genererCertificat({
+          etablissement,
+          patient: data.patient,
+          certificat: { type: certForm.type, contenu, date: new Date().toISOString(), doctor_prenom, doctor_nom },
+          signatureImg: signatureData || undefined,
+        });
+        setCertForm({ type: "Médical", contenu: "", nb_jours: "", date_debut: "", date_fin: "", date_deces: "", heure_deces: "", lieu_deces: "", cause_deces: "sa maladie", cause_autres: "", activite_sportive: "la pratique des activités sportives", etablissement_frequente: "", classe: "", candidat_au: "", session_exam: "", duree_inaptitude: "", mois_grossesse: "", monsieur_prenom: "", monsieur_nom: "", mademoiselle_prenom: "", mademoiselle_nom: "", qualification: "", radio: "Néant", bw: "Néant", acuite_od: "", acuite_og: "", begaiement: "Néant", surdite: "Néant", apte_pour: "Complément de dossier", contre_doctor_id: "", contre_apte_pour: "Complément de dossier" });
+        setSignatureData("");
+        setupCanvas();
+        const updated = await fetch(`/api/patients/${code}`);
+        if (updated.ok) setData(await updated.json());
+      } else {
+        setMessage({ type: "error", text: "Erreur" });
+      }
+      return;
+    }
+
     const contenu = buildCertContenu(`Dr. ${doctorName}`);
 
     const res = await fetch("/api/certificats", {
@@ -314,8 +429,11 @@ export default function PatientDossierPage() {
         etablissement,
         patient: data.patient,
         certificat: { type: certForm.type, contenu, date: new Date().toISOString(), doctor_prenom, doctor_nom },
+        signatureImg: signatureData || undefined,
       });
-      setCertForm({ type: "Médical", contenu: "", nb_jours: "", date_debut: "", date_fin: "", date_deces: "", heure_deces: "", lieu_deces: "", cause_deces: "sa maladie", cause_autres: "", activite_sportive: "la pratique des activités sportives" });
+      setCertForm({ type: "Médical", contenu: "", nb_jours: "", date_debut: "", date_fin: "", date_deces: "", heure_deces: "", lieu_deces: "", cause_deces: "sa maladie", cause_autres: "", activite_sportive: "la pratique des activités sportives", etablissement_frequente: "", classe: "", candidat_au: "", session_exam: "", duree_inaptitude: "", mois_grossesse: "", monsieur_prenom: "", monsieur_nom: "", mademoiselle_prenom: "", mademoiselle_nom: "", qualification: "", radio: "Néant", bw: "Néant", acuite_od: "", acuite_og: "", begaiement: "Néant", surdite: "Néant", apte_pour: "Complément de dossier", contre_doctor_id: "", contre_apte_pour: "Complément de dossier" });
+      setSignatureData("");
+      setupCanvas();
       const updated = await fetch(`/api/patients/${code}`);
       if (updated.ok) setData(await updated.json());
     } else {
@@ -338,6 +456,68 @@ export default function PatientDossierPage() {
       setMessage({ type: "error", text: "Erreur lors de la sauvegarde" });
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'certificat') {
+      setTimeout(() => setupCanvas(), 100);
+    }
+  }, [activeTab]);
+
+  const setupCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width > 0) { canvas.width = rect.width; canvas.height = 100; }
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#f9fafb';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#1f2937';
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    }
+  };
+  const getCanvasPos = (clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) };
+  };
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    isDrawingRef.current = true;
+    const { x, y } = getCanvasPos(e.clientX, e.clientY);
+    const ctx = canvasRef.current?.getContext('2d');
+    if (ctx) { ctx.beginPath(); ctx.moveTo(x, y); }
+  };
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawingRef.current) return;
+    const { x, y } = getCanvasPos(e.clientX, e.clientY);
+    const ctx = canvasRef.current?.getContext('2d');
+    if (ctx) { ctx.lineTo(x, y); ctx.stroke(); }
+  };
+  const handleCanvasEnd = () => {
+    isDrawingRef.current = false;
+    const canvas = canvasRef.current;
+    if (canvas) setSignatureData(canvas.toDataURL());
+  };
+  const handleCanvasTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    isDrawingRef.current = true;
+    const { x, y } = getCanvasPos(touch.clientX, touch.clientY);
+    const ctx = canvasRef.current?.getContext('2d');
+    if (ctx) { ctx.beginPath(); ctx.moveTo(x, y); }
+  };
+  const handleCanvasTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (!isDrawingRef.current) return;
+    const touch = e.touches[0];
+    const { x, y } = getCanvasPos(touch.clientX, touch.clientY);
+    const ctx = canvasRef.current?.getContext('2d');
+    if (ctx) { ctx.lineTo(x, y); ctx.stroke(); }
+  };
+  const clearSignature = () => { setupCanvas(); setSignatureData(""); };
 
   const handleRdv = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1218,6 +1398,8 @@ export default function PatientDossierPage() {
                   <option value="Repos">Certificat de repos</option>
                   <option value="Grossesse">Certificat de grossesse</option>
                   <option value="Décès">Certificat de décès</option>
+                  <option value="Prénuptial">Certificat prénuptial</option>
+                  <option value="Visite">Certificat de visite médicale</option>
                 </select>
               </div>
 
@@ -1294,12 +1476,154 @@ export default function PatientDossierPage() {
                     <p className="text-xs text-red-600">Le texte standardisé du certificat de décès sera généré automatiquement.</p>
                   </div>
                 </div>
+              ) : certForm.type === "Inaptitude" ? (
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Paramètres du certificat d'inaptitude</p>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Établissement fréquenté</label>
+                    <input type="text" value={certForm.etablissement_frequente} onChange={e => setCertForm(f => ({ ...f, etablissement_frequente: e.target.value }))} className="input-field" placeholder="Nom de l'établissement..." />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Classe</label>
+                      <input type="text" value={certForm.classe} onChange={e => setCertForm(f => ({ ...f, classe: e.target.value }))} className="input-field" placeholder="Ex : 3ème, Terminale..." />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Candidat(e) au</label>
+                      <input type="text" value={certForm.candidat_au} onChange={e => setCertForm(f => ({ ...f, candidat_au: e.target.value }))} className="input-field" placeholder="BEPC, BAC..." />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Session d'examen</label>
+                    <input type="text" value={certForm.session_exam} onChange={e => setCertForm(f => ({ ...f, session_exam: e.target.value }))} className="input-field" placeholder="Ex : Session 2026..." />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Durée d'inaptitude</label>
+                    <input type="text" value={certForm.duree_inaptitude} onChange={e => setCertForm(f => ({ ...f, duree_inaptitude: e.target.value }))} className="input-field" placeholder="Ex : 3 semaines, 1 mois..." />
+                  </div>
+                </div>
+              ) : certForm.type === "Grossesse" ? (
+                <div className="bg-pink-50 border border-pink-200 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-pink-700 uppercase tracking-wide">Paramètres du certificat de grossesse</p>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Nombre de mois de grossesse *</label>
+                    <input type="number" min="1" max="9" value={certForm.mois_grossesse} onChange={e => setCertForm(f => ({ ...f, mois_grossesse: e.target.value }))} className="input-field" placeholder="Ex : 3" required />
+                  </div>
+                  <p className="text-xs text-pink-600">Le texte standardisé du certificat sera généré automatiquement.</p>
+                </div>
+              ) : certForm.type === "Prénuptial" ? (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Paramètres du certificat prénuptial</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Prénom Monsieur *</label>
+                      <input type="text" value={certForm.monsieur_prenom} onChange={e => setCertForm(f => ({ ...f, monsieur_prenom: e.target.value }))} className="input-field" placeholder="Prénom..." required />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Nom Monsieur *</label>
+                      <input type="text" value={certForm.monsieur_nom} onChange={e => setCertForm(f => ({ ...f, monsieur_nom: e.target.value }))} className="input-field" placeholder="Nom..." required />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Prénom Mademoiselle *</label>
+                      <input type="text" value={certForm.mademoiselle_prenom} onChange={e => setCertForm(f => ({ ...f, mademoiselle_prenom: e.target.value }))} className="input-field" placeholder="Prénom..." required />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Nom Mademoiselle *</label>
+                      <input type="text" value={certForm.mademoiselle_nom} onChange={e => setCertForm(f => ({ ...f, mademoiselle_nom: e.target.value }))} className="input-field" placeholder="Nom..." required />
+                    </div>
+                  </div>
+                </div>
+              ) : certForm.type === "Visite" ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Paramètres du certificat de visite médicale</p>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Qualification du médecin *</label>
+                    <input type="text" value={certForm.qualification} onChange={e => setCertForm(f => ({ ...f, qualification: e.target.value }))} className="input-field" placeholder="Ex : Médecin généraliste..." required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Radio</label>
+                      <select value={certForm.radio} onChange={e => setCertForm(f => ({ ...f, radio: e.target.value }))} className="input-field">
+                        <option value="Néant">Néant</option>
+                        <option value="Oui">Oui</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">BW</label>
+                      <select value={certForm.bw} onChange={e => setCertForm(f => ({ ...f, bw: e.target.value }))} className="input-field">
+                        <option value="Néant">Néant</option>
+                        <option value="Oui">Oui</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Acuité OD</label>
+                      <input type="text" value={certForm.acuite_od} onChange={e => setCertForm(f => ({ ...f, acuite_od: e.target.value }))} className="input-field" placeholder="Ex : 10/10" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Acuité OG</label>
+                      <input type="text" value={certForm.acuite_og} onChange={e => setCertForm(f => ({ ...f, acuite_og: e.target.value }))} className="input-field" placeholder="Ex : 10/10" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Bégaiement</label>
+                      <select value={certForm.begaiement} onChange={e => setCertForm(f => ({ ...f, begaiement: e.target.value }))} className="input-field">
+                        <option value="Néant">Néant</option>
+                        <option value="Oui">Oui</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Surdité</label>
+                      <select value={certForm.surdite} onChange={e => setCertForm(f => ({ ...f, surdite: e.target.value }))} className="input-field">
+                        <option value="Néant">Néant</option>
+                        <option value="Oui">Oui</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Apte pour (visite)</label>
+                    <input type="text" value={certForm.apte_pour} onChange={e => setCertForm(f => ({ ...f, apte_pour: e.target.value }))} className="input-field" placeholder="Complément de dossier..." />
+                  </div>
+                  <div className="border-t border-blue-200 pt-3">
+                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">Contre-visite</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Médecin contre-visiteur *</label>
+                      <select value={certForm.contre_doctor_id} onChange={e => setCertForm(f => ({ ...f, contre_doctor_id: e.target.value }))} className="input-field" required>
+                        <option value="">— Sélectionner un médecin —</option>
+                        {doctors.filter(d => d.actif).map(d => (<option key={d.id} value={d.id}>Dr. {d.prenom} {d.nom}</option>))}
+                      </select>
+                    </div>
+                    <div className="mt-2">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Apte pour (contre-visite)</label>
+                      <input type="text" value={certForm.contre_apte_pour} onChange={e => setCertForm(f => ({ ...f, contre_apte_pour: e.target.value }))} className="input-field" placeholder="Complément de dossier..." />
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Contenu du certificat</label>
                   <textarea value={certForm.contenu} onChange={e => setCertForm(f => ({ ...f, contenu: e.target.value }))} className="input-field h-36 resize-none" placeholder="Texte du certificat médical..." required />
                 </div>
               )}
+
+              <div className="border border-gray-200 rounded-xl p-4 bg-white">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Signature du médecin (optionnelle)</p>
+                  <button type="button" onClick={clearSignature} className="text-xs text-red-500 hover:text-red-700">Effacer</button>
+                </div>
+                <canvas
+                  ref={canvasRef}
+                  className="w-full border border-dashed border-gray-300 rounded-lg bg-gray-50 cursor-crosshair touch-none"
+                  style={{ height: '100px' }}
+                  onMouseDown={handleCanvasMouseDown}
+                  onMouseMove={handleCanvasMouseMove}
+                  onMouseUp={handleCanvasEnd}
+                  onMouseLeave={handleCanvasEnd}
+                  onTouchStart={handleCanvasTouchStart}
+                  onTouchMove={handleCanvasTouchMove}
+                  onTouchEnd={handleCanvasEnd}
+                />
+                <p className="text-xs text-gray-400 mt-1">Signez ici avec la souris ou le doigt — apparaîtra sur le PDF</p>
+                {signatureData && <p className="text-xs text-green-600 mt-1">✓ Signature enregistrée</p>}
+              </div>
 
               <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
                 <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
