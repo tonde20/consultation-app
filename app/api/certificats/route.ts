@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
 
   // Règle métier : aptitude et inaptitude incompatibles le même jour
   const conflictMap: Record<string, string> = {
-    'Bonne santé': 'Inaptitude',
-    'Inaptitude': 'Bonne santé',
+    'Aptitude':   'Inaptitude',
+    'Inaptitude': 'Aptitude',
   };
   if (conflictMap[type]) {
     const conflit = await dbGet(
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     );
     if (conflit) {
       return NextResponse.json({
-        error: `Impossible : ce patient a déjà un certificat "${conflictMap[type]}" aujourd'hui. Un même patient ne peut pas recevoir un certificat d'aptitude et d'inaptitude le même jour.`,
+        error: `Impossible : ce patient a déjà un certificat d'${conflictMap[type].toLowerCase()} aujourd'hui. Aptitude et inaptitude ne peuvent pas être délivrés le même jour pour un même patient.`,
       }, { status: 409 });
     }
   }
