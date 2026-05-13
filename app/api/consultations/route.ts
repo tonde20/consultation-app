@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   if (!session || session.role !== 'medecin') {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
   }
-  const { patient_id, motif, diagnostic, notes, tension, temperature, pouls, poids, taille, prescriptions, examens, type_prise_en_charge, service_hospitalisation } = await req.json();
+  const { patient_id, motif, examen_physique, diagnostic, notes, tension, temperature, pouls, poids, taille, prescriptions, examens, type_prise_en_charge, service_hospitalisation } = await req.json();
   if (!patient_id) return NextResponse.json({ error: 'Patient requis' }, { status: 400 });
 
   await initDb();
@@ -49,9 +49,9 @@ export async function POST(req: NextRequest) {
   const serviceH = typePC === 'hospitalisation' ? (service_hospitalisation || null) : null;
 
   const consult = await dbGet(
-    `INSERT INTO consultations (patient_id, doctor_id, motif, diagnostic, notes, tension, temperature, pouls, poids, taille, valide_jusqu, montant, type_prise_en_charge, service_hospitalisation)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
-    [patient_id, session.id, motif || null, diagnostic || null, notes || null, tension || null, temperature || null, pouls || null, poids || null, taille || null, valide_jusqu, montant, typePC, serviceH]
+    `INSERT INTO consultations (patient_id, doctor_id, motif, examen_physique, diagnostic, notes, tension, temperature, pouls, poids, taille, valide_jusqu, montant, type_prise_en_charge, service_hospitalisation)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+    [patient_id, session.id, motif || null, examen_physique || null, diagnostic || null, notes || null, tension || null, temperature || null, pouls || null, poids || null, taille || null, valide_jusqu, montant, typePC, serviceH]
   );
 
   const consultId = consult.id;

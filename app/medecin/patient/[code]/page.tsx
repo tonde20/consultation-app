@@ -6,7 +6,7 @@ import { genererOrdonnance, genererExamens, genererCertificat } from "@/lib/pdf"
 interface Prescription { id: number; medicament: string; posologie: string; duree: string; }
 interface Examen { id: number; categorie: string; type_examen: string; description: string; resultat: string; }
 interface Consultation {
-  id: number; date: string; motif: string; diagnostic: string; notes: string;
+  id: number; date: string; motif: string; examen_physique: string; diagnostic: string; notes: string;
   tension: string; temperature: string; pouls: string; poids: string; taille: string; valide_jusqu: string; montant: number;
   doctor_nom: string; doctor_prenom: string;
   prescriptions: Prescription[]; examens: Examen[];
@@ -48,7 +48,7 @@ export default function PatientDossierPage() {
   const BILANS_IMAGERIE = ["Radiographie standard", "Échographie"];
 
   const [consultForm, setConsultForm] = useState({
-    motif: "", diagnostic: "", notes: "", tension: "", temperature: "", pouls: "", poids: "", taille: "",
+    motif: "", examen_physique: "", diagnostic: "", notes: "", tension: "", temperature: "", pouls: "", poids: "", taille: "",
     type_prise_en_charge: "ambulatoire",
     service_hospitalisation: "",
     prescriptions: [{ medicament: "", posologie: "", duree: "" }],
@@ -130,7 +130,7 @@ export default function PatientDossierPage() {
   };
 
   const resetConsultForm = () => {
-    setConsultForm({ motif: "", diagnostic: "", notes: "", tension: "", temperature: "", pouls: "", poids: "", taille: "", type_prise_en_charge: "ambulatoire", service_hospitalisation: "", prescriptions: [{ medicament: "", posologie: "", duree: "" }] });
+    setConsultForm({ motif: "", examen_physique: "", diagnostic: "", notes: "", tension: "", temperature: "", pouls: "", poids: "", taille: "", type_prise_en_charge: "ambulatoire", service_hospitalisation: "", prescriptions: [{ medicament: "", posologie: "", duree: "" }] });
     setExamensCategories(new Set());
     setExamensCoches(new Set());
     setAutresBilanText(""); setAutresImagerieText(""); setAutresText("");
@@ -340,8 +340,8 @@ export default function PatientDossierPage() {
               {selectedConsult.motif && (
                 <div><p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Motif</p><p className="text-gray-700">{selectedConsult.motif}</p></div>
               )}
-              {selectedConsult.diagnostic && (
-                <div><p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Diagnostic</p><p className="text-gray-800 font-medium">{selectedConsult.diagnostic}</p></div>
+              {selectedConsult.examen_physique && (
+                <div><p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Examen physique</p><p className="text-gray-700 whitespace-pre-wrap">{selectedConsult.examen_physique}</p></div>
               )}
               <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Prise en charge</p>
@@ -398,9 +398,16 @@ export default function PatientDossierPage() {
                       <div key={ex.id} className="bg-teal-50 border border-teal-100 px-3 py-2 rounded-lg text-sm">
                         <span className="font-medium text-teal-800">{ex.type_examen}</span>
                         {ex.description && <span className="text-gray-600"> — {ex.description}</span>}
+                        {ex.resultat && <p className="text-xs text-teal-600 mt-0.5 font-medium">Résultat : {ex.resultat}</p>}
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+              {selectedConsult.diagnostic && (
+                <div className="bg-primary-50 border border-primary-200 rounded-xl px-4 py-3">
+                  <p className="text-xs font-semibold text-primary-600 uppercase tracking-wide mb-1">Diagnostic</p>
+                  <p className="text-primary-900 font-semibold text-sm">{selectedConsult.diagnostic}</p>
                 </div>
               )}
             </div>
@@ -786,9 +793,9 @@ export default function PatientDossierPage() {
               Consultation
             </h3>
             <div className="space-y-3">
-              <div><label className="block text-xs font-medium text-gray-600 mb-1.5">Motif</label><input type="text" value={consultForm.motif} onChange={e => setConsultForm(f => ({ ...f, motif: e.target.value }))} className="input-field" placeholder="Fièvre, douleur..." /></div>
-              <div><label className="block text-xs font-medium text-gray-600 mb-1.5">Diagnostic</label><input type="text" value={consultForm.diagnostic} onChange={e => setConsultForm(f => ({ ...f, diagnostic: e.target.value }))} className="input-field" placeholder="Paludisme, grippe..." /></div>
-              <div><label className="block text-xs font-medium text-gray-600 mb-1.5">Notes / Observations</label><textarea value={consultForm.notes} onChange={e => setConsultForm(f => ({ ...f, notes: e.target.value }))} className="input-field h-20 resize-none" placeholder="Observations supplémentaires..." /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1.5">Motif de consultation</label><input type="text" value={consultForm.motif} onChange={e => setConsultForm(f => ({ ...f, motif: e.target.value }))} className="input-field" placeholder="Fièvre, douleur abdominale..." /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1.5">Éléments retrouvés à l'examen physique</label><textarea value={consultForm.examen_physique} onChange={e => setConsultForm(f => ({ ...f, examen_physique: e.target.value }))} className="input-field h-24 resize-none" placeholder="Abdomen souple, pas de défense. Auscultation pulmonaire normale. Gorge inflammée..." /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1.5">Notes / Observations complémentaires</label><textarea value={consultForm.notes} onChange={e => setConsultForm(f => ({ ...f, notes: e.target.value }))} className="input-field h-16 resize-none" placeholder="Observations supplémentaires..." /></div>
 
               {/* Prise en charge */}
               <div>
@@ -994,6 +1001,21 @@ export default function PatientDossierPage() {
                 )}
               </div>
             )}
+          </div>
+
+          {/* Diagnostic — en dernier après l'examen clinique et les bilans */}
+          <div className="card border-l-4 border-l-teal-500">
+            <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-xs font-bold">{consultForm.type_prise_en_charge === "ambulatoire" ? "5" : "4"}</span>
+              Diagnostic
+            </h3>
+            <input
+              type="text"
+              value={consultForm.diagnostic}
+              onChange={e => setConsultForm(f => ({ ...f, diagnostic: e.target.value }))}
+              className="input-field"
+              placeholder="Paludisme simple, Pneumonie, HTA, Grippe..."
+            />
           </div>
 
           <div className="flex gap-3">

@@ -98,6 +98,7 @@ export async function initDb() {
     )
   `;
   await sql`ALTER TABLE consultations ADD COLUMN IF NOT EXISTS pouls TEXT`;
+  await sql`ALTER TABLE consultations ADD COLUMN IF NOT EXISTS examen_physique TEXT`;
   await sql`ALTER TABLE consultations ADD COLUMN IF NOT EXISTS date_sortie TEXT`;
   await sql`ALTER TABLE consultations ADD COLUMN IF NOT EXISTS frais_hospitalisation INTEGER DEFAULT 0`;
 
