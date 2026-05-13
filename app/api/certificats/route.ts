@@ -12,17 +12,28 @@ export async function POST(req: NextRequest) {
 
   await initDb();
   const fraisRow = await dbGet("SELECT value FROM settings WHERE key = 'certificat_frais'");
-  const montant = parseInt(fraisRow?.value || '2000');
+  const fraisBase = parseInt(fraisRow?.value || '2000');
+
+  // Même type de certificat déjà émis aujourd'hui pour ce patient → gratuit
+  const todayStr   = new Date().toISOString().split('T')[0];
+  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const dejaEmis = await dbGet(
+    `SELECT id FROM certificats WHERE patient_id = $1 AND type = $2 AND date >= $3 AND date < $4 LIMIT 1`,
+    [patient_id, type, todayStr, tomorrowStr]
+  );
+  const montant = dejaEmis ? 0 : fraisBase;
 
   const cert = await dbGet(
     'INSERT INTO certificats (patient_id, doctor_id, type, contenu, montant) VALUES ($1, $2, $3, $4, $5) RETURNING id',
     [patient_id, session.id, type, contenu || null, montant]
   );
 
-  await dbRun(
-    'INSERT INTO paiements (patient_id, type, reference_id, montant) VALUES ($1, $2, $3, $4)',
-    [patient_id, 'certificat', cert.id, montant]
-  );
+  if (montant > 0) {
+    await dbRun(
+      'INSERT INTO paiements (patient_id, type, reference_id, montant) VALUES ($1, $2, $3, $4)',
+      [patient_id, 'certificat', cert.id, montant]
+    );
+  }
 
   if (type === 'Décès') {
     await dbRun('UPDATE patients SET decede = 1 WHERE id = $1', [patient_id]);
