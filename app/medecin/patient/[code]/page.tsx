@@ -386,7 +386,8 @@ export default function PatientDossierPage() {
         const updated = await fetch(`/api/patients/${code}`);
         if (updated.ok) setData(await updated.json());
       } else {
-        setMessage({ type: "error", text: "Erreur" });
+        const d = await res.json();
+        setMessage({ type: "error", text: d.error || "Erreur lors de la création du certificat" });
       }
       return;
     }
@@ -412,7 +413,8 @@ export default function PatientDossierPage() {
         const updated = await fetch(`/api/patients/${code}`);
         if (updated.ok) setData(await updated.json());
       } else {
-        setMessage({ type: "error", text: "Erreur" });
+        const d = await res.json();
+        setMessage({ type: "error", text: d.error || "Erreur lors de la création du certificat" });
       }
       return;
     }
@@ -438,7 +440,8 @@ export default function PatientDossierPage() {
       const updated = await fetch(`/api/patients/${code}`);
       if (updated.ok) setData(await updated.json());
     } else {
-      setMessage({ type: "error", text: "Erreur" });
+      const d = await res.json();
+      setMessage({ type: "error", text: d.error || "Erreur lors de la création du certificat" });
     }
   };
 
