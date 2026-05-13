@@ -703,7 +703,7 @@ export function genererCertificatVisite(opts: {
     apte_pour: string;
   };
   contre: {
-    doctor_prenom: string; doctor_nom: string;
+    doctor_prenom: string; doctor_nom: string; qualification: string;
     apte_pour: string;
   };
   signatureImg?: string;
@@ -732,10 +732,8 @@ export function genererCertificatVisite(opts: {
 
   const s1: Seg[] = [];
   for (const line of [
-    `Nous soussigné Dr. ${visite.doctor_prenom} ${visite.doctor_nom}`,
-    `Qualification : ${visite.qualification || '—'}`,
-    `Certifions que ${patient.prenom} ${patient.nom}`,
-    `Né(e) le ${dateNaissance}`,
+    `Nous soussigné Dr. ${visite.doctor_prenom} ${visite.doctor_nom}, ${visite.qualification || 'Médecin'},`,
+    `Certifions que ${patient.prenom} ${patient.nom}, né(e) le ${dateNaissance},`,
     `Ne présente actuellement aucune infection contagieuse cliniquement et radiologiquement décelable et il(elle) est indemne de toute infection tuberculose, cancéreuse, nerveuse ou lépreuse.`,
     `Radio : ${visite.radio}     B.W : ${visite.bw}`,
     `Acuité visuelle sans correction — OD : ${visite.acuite_od || '—'}  OG : ${visite.acuite_og || '—'}  Bégaiement : ${visite.begaiement}  Surdité : ${visite.surdite}`,
@@ -748,8 +746,8 @@ export function genererCertificatVisite(opts: {
 
   const s2: Seg[] = [];
   for (const line of [
-    `Nous soussigné Dr. ${contre.doctor_prenom} ${contre.doctor_nom}`,
-    `Certifions que ${patient.prenom} ${patient.nom}`,
+    `Nous soussigné Dr. ${contre.doctor_prenom} ${contre.doctor_nom}, ${contre.qualification || 'Médecin'},`,
+    `Certifions que ${patient.prenom} ${patient.nom}, né(e) le ${dateNaissance},`,
     `Est indemne de toute infection contagieuse cliniquement et radiologiquement décelable et il(elle) est indemne de toute infection tuberculose, cancéreuse, nerveuse ou lépreuse.`,
     `En conséquence, estimons qu'il/elle est apte ${contre.apte_pour}`,
   ]) {
@@ -780,7 +778,7 @@ export function genererCertificatVisite(opts: {
   doc.setDrawColor(...GREEN);
   doc.setLineWidth(0.4);
   doc.line(w / 2 - t1w / 2, y + 9, w / 2 + t1w / 2, y + 9);
-  y += 12;
+  y += 17;
 
   doc.setFont('times', 'normal');
   doc.setFontSize(11);
@@ -837,7 +835,7 @@ export function genererCertificatVisite(opts: {
   doc.setDrawColor(...TEAL);
   doc.setLineWidth(0.4);
   doc.line(w / 2 - t2w / 2, y + 9, w / 2 + t2w / 2, y + 9);
-  y += 12;
+  y += 17;
 
   doc.setFont('times', 'normal');
   doc.setFontSize(11);

@@ -375,6 +375,7 @@ export default function PatientDossierPage() {
           contre: {
             doctor_prenom: contreDoctor?.prenom || "",
             doctor_nom: contreDoctor?.nom || "",
+            qualification: contreDoctor?.qualification || "Médecin",
             apte_pour: certForm.contre_apte_pour,
           },
           signatureImg: signatureData || undefined,
