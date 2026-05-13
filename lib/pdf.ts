@@ -756,8 +756,8 @@ export function genererCertificatVisite(opts: {
   }
   const s2H = s2.length * lineH;
 
-  // frameH calculé généreusement pour englober les deux sig zones
-  const frameH = 8 + 12 + s1H + 44 + 12 + 12 + s2H + 28 + 10;
+  // frameH aligné sur le rendu réel (titleH=17 × 2, sig1=44, sig2=28, sep=12, pads=8+10)
+  const frameH = 8 + 17 + s1H + 44 + 12 + 17 + s2H + 28 + 10;
   const frameY = 38;
 
   // ── Cadre unique (vert) ───────────────────────────────────
