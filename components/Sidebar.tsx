@@ -21,7 +21,7 @@ export default function Sidebar({ items, role, userName, etablissement }: Sideba
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    router.push("/");
   };
 
   const roleLabel = role === "admin" ? "Administrateur" : role === "medecin" ? "Médecin" : "Patient";
