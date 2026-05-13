@@ -12,6 +12,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   await initDb();
 
   if (data.password) {
+    data.password_plain = data.password;
     data.password = bcrypt.hashSync(data.password, 10);
   }
 

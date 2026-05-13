@@ -70,6 +70,7 @@ export async function initDb() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `;
+  await sql`ALTER TABLE doctors ADD COLUMN IF NOT EXISTS password_plain TEXT`;
   await sql`ALTER TABLE patients ADD COLUMN IF NOT EXISTS profession TEXT`;
   await sql`ALTER TABLE patients ADD COLUMN IF NOT EXISTS residence TEXT`;
   await sql`ALTER TABLE patients ADD COLUMN IF NOT EXISTS antecedents_medicaux TEXT`;

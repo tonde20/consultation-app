@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs';
 export async function GET() {
   await initDb();
   const doctors = await dbAll(
-    'SELECT id, nom, prenom, telephone, specialite, username, actif, created_at FROM doctors ORDER BY nom'
+    'SELECT id, nom, prenom, telephone, specialite, username, actif, password_plain, created_at FROM doctors ORDER BY nom'
   );
   return NextResponse.json(doctors);
 }
@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
   const hashedPwd = bcrypt.hashSync(password, 10);
   try {
     const result = await dbGet(
-      'INSERT INTO doctors (nom, prenom, telephone, specialite, username, password) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      [nom, prenom, telephone, specialite || 'Médecin généraliste', username, hashedPwd]
+      'INSERT INTO doctors (nom, prenom, telephone, specialite, username, password, password_plain) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+      [nom, prenom, telephone, specialite || 'Médecin généraliste', username, hashedPwd, password]
     );
     return NextResponse.json({ id: result.id, success: true });
   } catch (e: any) {
