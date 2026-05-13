@@ -14,9 +14,27 @@ export async function POST(req: NextRequest) {
   const fraisRow = await dbGet("SELECT value FROM settings WHERE key = 'certificat_frais'");
   const fraisBase = parseInt(fraisRow?.value || '2000');
 
-  // Même type de certificat déjà émis aujourd'hui pour ce patient → gratuit
-  const todayStr   = new Date().toISOString().split('T')[0];
+  const todayStr    = new Date().toISOString().split('T')[0];
   const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+  // Règle métier : aptitude et inaptitude incompatibles le même jour
+  const conflictMap: Record<string, string> = {
+    'Bonne santé': 'Inaptitude',
+    'Inaptitude': 'Bonne santé',
+  };
+  if (conflictMap[type]) {
+    const conflit = await dbGet(
+      `SELECT id FROM certificats WHERE patient_id = $1 AND type = $2 AND date >= $3 AND date < $4 LIMIT 1`,
+      [patient_id, conflictMap[type], todayStr, tomorrowStr]
+    );
+    if (conflit) {
+      return NextResponse.json({
+        error: `Impossible : ce patient a déjà un certificat "${conflictMap[type]}" aujourd'hui. Un même patient ne peut pas recevoir un certificat d'aptitude et d'inaptitude le même jour.`,
+      }, { status: 409 });
+    }
+  }
+
+  // Même type déjà émis aujourd'hui → réimpression gratuite
   const dejaEmis = await dbGet(
     `SELECT id FROM certificats WHERE patient_id = $1 AND type = $2 AND date >= $3 AND date < $4 LIMIT 1`,
     [patient_id, type, todayStr, tomorrowStr]
