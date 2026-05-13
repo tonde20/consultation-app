@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState<"admin" | "medecin" | "patient">("medecin");
+  const [role, setRole] = useState<"admin" | "medecin">("medecin");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -30,8 +30,7 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Erreur de connexion"); return; }
       if (role === "admin") router.push("/admin");
-      else if (role === "medecin") router.push("/medecin");
-      else router.push("/patient");
+      else router.push("/medecin");
     } catch { setError("Erreur réseau"); }
     finally { setLoading(false); }
   };
@@ -54,28 +53,26 @@ export default function LoginPage() {
           <h2 className="text-lg font-semibold text-gray-700 mb-6">Connexion</h2>
 
           <div className="flex rounded-xl overflow-hidden border border-gray-200 mb-6">
-            {(["medecin", "patient", "admin"] as const).map(r => (
+            {(["medecin", "admin"] as const).map(r => (
               <button
                 key={r}
                 onClick={() => { setRole(r); setIdentifier(""); setPassword(""); setError(""); }}
                 className={`flex-1 py-2.5 text-sm font-medium transition-colors ${role === r ? "bg-primary-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
               >
-                {r === "medecin" ? "Médecin" : r === "patient" ? "Patient" : "Admin"}
+                {r === "medecin" ? "Médecin" : "Admin"}
               </button>
             ))}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {role === "patient" ? "Code patient" : "Nom d'utilisateur"}
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nom d'utilisateur</label>
               <input
                 type="text"
                 value={identifier}
                 onChange={e => setIdentifier(e.target.value)}
                 className="input-field"
-                placeholder={role === "patient" ? "PAT-000001" : role === "medecin" ? "medecin1" : "admin"}
+                placeholder={role === "medecin" ? "medecin1" : "admin"}
                 required
               />
             </div>
@@ -105,7 +102,6 @@ export default function LoginPage() {
           <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
             <p>Médecin: medecin1 / medecin1123</p>
             <p>Admin: admin / admin123</p>
-            <p>Patient: PAT-000001 / patient123</p>
           </div>
         </div>
       </div>

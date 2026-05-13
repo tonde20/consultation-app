@@ -9,7 +9,7 @@ export default async function HomePage() {
   if (session) {
     if (session.role === "admin")   redirect("/admin");
     if (session.role === "medecin") redirect("/medecin");
-    if (session.role === "patient") redirect("/patient");
+    if (session.role === "patient") redirect("/login");
   }
 
   let etablissement = "CMA de Boromo";
@@ -101,7 +101,7 @@ export default async function HomePage() {
           <p className="text-white/35 text-sm mt-1.5">Sélectionnez votre profil pour vous connecter</p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-5">
+        <div className="grid md:grid-cols-2 gap-5 max-w-2xl mx-auto">
           {/* Médecin */}
           <Link href="/login/medecin"
             className="group relative overflow-hidden rounded-2xl border border-white/10 p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl"
@@ -119,31 +119,6 @@ export default async function HomePage() {
               <h3 className="font-bold text-white text-xl mb-2">Médecin</h3>
               <p className="text-white/40 text-sm leading-relaxed">Dossiers patients, consultations, prescriptions et certificats médicaux</p>
               <div className="mt-6 flex items-center gap-2 text-sm font-semibold" style={{ color: "#4ade80" }}>
-                Se connecter
-                <svg className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/>
-                </svg>
-              </div>
-            </div>
-          </Link>
-
-          {/* Patient */}
-          <Link href="/login/patient"
-            className="group relative overflow-hidden rounded-2xl border border-white/10 p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl"
-            style={{ background: "rgba(255,255,255,0.03)" }}
-          >
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"
-              style={{ background: "linear-gradient(135deg,rgba(59,130,246,0.1),rgba(59,130,246,0.05))", boxShadow: "inset 0 0 0 1px rgba(147,197,253,0.2)" }} />
-            <div className="relative">
-              <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-5"
-                style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(147,197,253,0.2)" }}>
-                <svg className="w-7 h-7" style={{ color: "#93c5fd" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
-                </svg>
-              </div>
-              <h3 className="font-bold text-white text-xl mb-2">Patient</h3>
-              <p className="text-white/40 text-sm leading-relaxed">Ordonnances, résultats d'examens et gestion des rendez-vous médicaux</p>
-              <div className="mt-6 flex items-center gap-2 text-sm font-semibold" style={{ color: "#93c5fd" }}>
                 Se connecter
                 <svg className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/>

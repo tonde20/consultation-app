@@ -15,6 +15,7 @@ interface Consultation {
 interface Patient {
   id: number; code: string; nom: string; prenom: string; date_naissance: string;
   sexe: string; telephone: string; adresse: string; decede?: number;
+  antecedents_medicaux?: string; antecedents_chirurgicaux?: string;
 }
 
 function calcIMC(poids: string, taille: string): string | null {
@@ -65,7 +66,8 @@ export default function PatientDossierPage() {
   });
 
   const [rdvForm, setRdvForm] = useState({ doctor_id: "", date_heure: "", motif: "" });
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingAntecedents, setEditingAntecedents] = useState(false);
+  const [antForm, setAntForm] = useState({ antecedents_medicaux: "", antecedents_chirurgicaux: "" });
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -74,7 +76,14 @@ export default function PatientDossierPage() {
         fetch("/api/settings"),
         fetch("/api/doctors"),
       ]);
-      if (patRes.ok) setData(await patRes.json());
+      if (patRes.ok) {
+        const patData = await patRes.json();
+        setData(patData);
+        setAntForm({
+          antecedents_medicaux: patData.patient?.antecedents_medicaux || "",
+          antecedents_chirurgicaux: patData.patient?.antecedents_chirurgicaux || "",
+        });
+      }
       if (settRes.ok) { const s = await settRes.json(); if (s.etablissement_nom) setEtablissement(s.etablissement_nom); }
       if (docRes.ok) setDoctors(await docRes.json());
       setLoading(false);
@@ -172,13 +181,19 @@ export default function PatientDossierPage() {
     }
   };
 
-  const handleDeletePatient = async () => {
-    const res = await fetch(`/api/patients/${code}`, { method: "DELETE" });
+  const handleSaveAntecedents = async () => {
+    const res = await fetch(`/api/patients/${code}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(antForm),
+    });
     if (res.ok) {
-      router.push("/medecin");
+      setMessage({ type: "success", text: "Antécédents enregistrés" });
+      setEditingAntecedents(false);
+      const updated = await fetch(`/api/patients/${code}`);
+      if (updated.ok) setData(await updated.json());
     } else {
-      setMessage({ type: "error", text: "Erreur lors de la suppression" });
-      setConfirmDelete(false);
+      setMessage({ type: "error", text: "Erreur lors de la sauvegarde" });
     }
   };
 
@@ -321,25 +336,6 @@ export default function PatientDossierPage() {
         </div>
       )}
 
-      {/* Modal confirmation suppression */}
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center text-red-600 text-xl">⚠️</div>
-              <h3 className="font-bold text-gray-800">Supprimer le dossier patient</h3>
-            </div>
-            <p className="text-gray-600 text-sm mb-2">Vous êtes sur le point de supprimer définitivement le dossier de :</p>
-            <p className="font-semibold text-gray-800 mb-4">{patient.prenom} {patient.nom} — <span className="font-mono text-red-600">{patient.code}</span></p>
-            <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg mb-5">Cette action est irréversible. Toutes les consultations, certificats et rendez-vous associés seront supprimés.</p>
-            <div className="flex gap-3">
-              <button onClick={handleDeletePatient} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors">Supprimer définitivement</button>
-              <button onClick={() => setConfirmDelete(false)} className="flex-1 btn-secondary">Annuler</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* En-tête patient */}
       <div className={`card mb-6 border ${patient.decede ? "bg-gradient-to-r from-red-50 to-gray-50 border-red-200" : "bg-gradient-to-r from-primary-50 to-teal-50 border-primary-100"}`}>
         <div className="flex items-start justify-between">
@@ -365,15 +361,6 @@ export default function PatientDossierPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {patient.decede === 1 && (
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors shadow-sm"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                Supprimer le dossier
-              </button>
-            )}
             <button onClick={() => router.push("/medecin")} className="btn-secondary text-sm">← Retour</button>
           </div>
         </div>
@@ -415,6 +402,72 @@ export default function PatientDossierPage() {
       {/* Onglet Dossier */}
       {activeTab === "dossier" && (
         <div className="space-y-4">
+          {/* Antécédents */}
+          <div className="card border-l-4 border-l-amber-400">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-gray-700 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
+                Antécédents médicaux et chirurgicaux
+              </h2>
+              {!editingAntecedents && (
+                <button
+                  onClick={() => {
+                    setAntForm({
+                      antecedents_medicaux: patient.antecedents_medicaux || "",
+                      antecedents_chirurgicaux: patient.antecedents_chirurgicaux || "",
+                    });
+                    setEditingAntecedents(true);
+                  }}
+                  className="text-xs font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                  Modifier
+                </button>
+              )}
+            </div>
+            {editingAntecedents ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Antécédents médicaux</label>
+                  <textarea
+                    value={antForm.antecedents_medicaux}
+                    onChange={e => setAntForm(f => ({ ...f, antecedents_medicaux: e.target.value }))}
+                    className="input-field h-20 resize-none"
+                    placeholder="Diabète, HTA, asthme, allergies..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Antécédents chirurgicaux</label>
+                  <textarea
+                    value={antForm.antecedents_chirurgicaux}
+                    onChange={e => setAntForm(f => ({ ...f, antecedents_chirurgicaux: e.target.value }))}
+                    className="input-field h-20 resize-none"
+                    placeholder="Appendicectomie 2015, césarienne 2019..."
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleSaveAntecedents} className="btn-primary text-sm px-4 py-1.5">Enregistrer</button>
+                  <button onClick={() => setEditingAntecedents(false)} className="btn-secondary text-sm px-4 py-1.5">Annuler</button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Médicaux</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                    {patient.antecedents_medicaux || <span className="text-gray-300 italic">Aucun antécédent renseigné</span>}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Chirurgicaux</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                    {patient.antecedents_chirurgicaux || <span className="text-gray-300 italic">Aucun antécédent renseigné</span>}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-gray-700">Historique des consultations <span className="text-gray-400 font-normal">({consultations.length})</span></h2>
           </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initDb, dbAll, dbGet, dbRun, generatePatientCode } from '@/lib/db';
+import { initDb, dbAll, dbGet, generatePatientCode } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Nom et prénom requis' }, { status: 400 });
   }
   await initDb();
-  const code = await generatePatientCode();
+  const code = await generatePatientCode(nom, prenom);
   const hashedPwd = bcrypt.hashSync(password || code, 10);
   try {
     const result = await dbGet(

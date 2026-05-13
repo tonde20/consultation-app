@@ -63,6 +63,8 @@ export async function initDb() {
       adresse TEXT,
       profession TEXT,
       residence TEXT,
+      antecedents_medicaux TEXT,
+      antecedents_chirurgicaux TEXT,
       password TEXT NOT NULL,
       decede INTEGER DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -70,6 +72,8 @@ export async function initDb() {
   `;
   await sql`ALTER TABLE patients ADD COLUMN IF NOT EXISTS profession TEXT`;
   await sql`ALTER TABLE patients ADD COLUMN IF NOT EXISTS residence TEXT`;
+  await sql`ALTER TABLE patients ADD COLUMN IF NOT EXISTS antecedents_medicaux TEXT`;
+  await sql`ALTER TABLE patients ADD COLUMN IF NOT EXISTS antecedents_chirurgicaux TEXT`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS consultations (
@@ -185,9 +189,21 @@ async function seedData() {
   `;
 }
 
-export async function generatePatientCode(): Promise<string> {
-  const last = await dbGet('SELECT code FROM patients ORDER BY id DESC LIMIT 1');
-  if (!last) return 'PAT-000001';
-  const num = parseInt(last.code.split('-')[1]) + 1;
-  return `PAT-${String(num).padStart(6, '0')}`;
+export async function generatePatientCode(nom: string, prenom: string): Promise<string> {
+  const initPrenom = prenom.trim().split(/\s+/)[0].charAt(0).toUpperCase();
+  const initNom = nom.trim().split(/\s+/)[0].charAt(0).toUpperCase();
+  const initials = initPrenom + initNom;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const yearMonth = `${year}${month}`;
+
+  // Compte les patients du mois en cours (format XX999999999 = 2 initiales + 6 chiffres + 3 ordre)
+  const result = await dbGet(
+    `SELECT COUNT(*) as count FROM patients WHERE code LIKE $1`,
+    [`__${yearMonth}___`]
+  );
+  const count = parseInt(result?.count || '0') + 1;
+  return `${initials}${yearMonth}${String(count).padStart(3, '0')}`;
 }
