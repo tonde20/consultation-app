@@ -12,6 +12,18 @@ export async function POST(req: NextRequest) {
 
   await initDb();
 
+  // Bloquer si une consultation a déjà été enregistrée aujourd'hui pour ce patient
+  const dejaAujourdHui = await dbGet(
+    `SELECT id FROM consultations WHERE patient_id = $1 AND DATE(date) = CURRENT_DATE LIMIT 1`,
+    [patient_id]
+  );
+  if (dejaAujourdHui) {
+    return NextResponse.json(
+      { error: 'Une consultation a déjà été enregistrée aujourd\'hui pour ce patient. Vous ne pouvez pas enregistrer la même consultation deux fois.' },
+      { status: 409 }
+    );
+  }
+
   const settings = await dbGet('SELECT value FROM settings WHERE key = $1', ['consultation_validite_jours']);
   const validiteDays = parseInt(settings?.value || '10');
   const validiteDate = new Date();
@@ -19,7 +31,16 @@ export async function POST(req: NextRequest) {
   const valide_jusqu = validiteDate.toISOString().split('T')[0];
 
   const fraisRow = await dbGet('SELECT value FROM settings WHERE key = $1', ['consultation_frais']);
-  const montant = parseInt(fraisRow?.value || '1250');
+  const fraisBase = parseInt(fraisRow?.value || '1250');
+
+  // Vérifier si le patient a une consultation encore active (dans la période de validité)
+  const consultActive = await dbGet(
+    `SELECT id, valide_jusqu FROM consultations WHERE patient_id = $1 AND valide_jusqu >= CURRENT_DATE ORDER BY date DESC LIMIT 1`,
+    [patient_id]
+  );
+  // Si une consultation est encore active, la nouvelle est gratuite
+  const montant = consultActive ? 0 : fraisBase;
+  const estGratuite = montant === 0;
 
   const typePC = type_prise_en_charge || 'ambulatoire';
   const serviceH = typePC === 'hospitalisation' ? (service_hospitalisation || null) : null;
@@ -54,12 +75,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await dbRun(
-    'INSERT INTO paiements (patient_id, type, reference_id, montant) VALUES ($1, $2, $3, $4)',
-    [patient_id, 'consultation', consultId, montant]
-  );
+  // N'enregistrer un paiement que si la consultation est payante
+  if (!estGratuite) {
+    await dbRun(
+      'INSERT INTO paiements (patient_id, type, reference_id, montant) VALUES ($1, $2, $3, $4)',
+      [patient_id, 'consultation', consultId, montant]
+    );
+  }
 
-  return NextResponse.json({ id: consultId, success: true });
+  return NextResponse.json({ id: consultId, success: true, gratuite: estGratuite });
 }
 
 export async function GET(req: NextRequest) {

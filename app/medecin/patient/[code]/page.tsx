@@ -105,13 +105,18 @@ export default function PatientDossierPage() {
       }),
     });
     if (res.ok) {
-      setMessage({ type: "success", text: "Consultation enregistrée avec succès" });
+      const result = await res.json();
+      const msg = result.gratuite
+        ? "Consultation enregistrée — Gratuite (consultation active en cours, patient dans la période de validité)"
+        : "Consultation enregistrée avec succès";
+      setMessage({ type: "success", text: msg });
       setActiveTab("dossier");
       const updated = await fetch(`/api/patients/${code}`);
       if (updated.ok) setData(await updated.json());
       setConsultForm({ motif: "", diagnostic: "", notes: "", tension: "", temperature: "", poids: "", taille: "", type_prise_en_charge: "ambulatoire", service_hospitalisation: "", prescriptions: [{ medicament: "", posologie: "", duree: "" }], examens: [{ type_examen: "", description: "" }] });
     } else {
-      setMessage({ type: "error", text: "Erreur lors de l'enregistrement" });
+      const errData = await res.json().catch(() => ({}));
+      setMessage({ type: "error", text: errData.error || "Erreur lors de l'enregistrement" });
     }
   };
 
@@ -220,6 +225,10 @@ export default function PatientDossierPage() {
 
   const { patient, consultations, rendez_vous, certificats } = data;
   const age = patient.date_naissance ? Math.floor((Date.now() - new Date(patient.date_naissance).getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
+
+  // Consultation encore active (valide_jusqu >= aujourd'hui)
+  const today = new Date().toISOString().split('T')[0];
+  const consultationActive = consultations.find(c => c.valide_jusqu && c.valide_jusqu >= today);
 
   // IMC du formulaire en cours
   const imcEnCours = calcIMC(consultForm.poids, consultForm.taille);
@@ -402,6 +411,28 @@ export default function PatientDossierPage() {
       {/* Onglet Dossier */}
       {activeTab === "dossier" && (
         <div className="space-y-4">
+          {/* Ticket consultation active */}
+          {consultationActive && (
+            <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3.5">
+              <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-emerald-800 text-sm">Consultation active</p>
+                <p className="text-emerald-700 text-xs mt-0.5">
+                  Ce patient a une consultation en cours, valable jusqu'au{" "}
+                  <span className="font-bold">{new Date(consultationActive.valide_jusqu).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}</span>.
+                  Toute nouvelle consultation avant cette date sera <span className="font-bold">gratuite</span>.
+                </p>
+              </div>
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full whitespace-nowrap">
+                Gratuit jusqu'au {new Date(consultationActive.valide_jusqu).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
+              </span>
+            </div>
+          )}
+
           {/* Antécédents */}
           <div className="card border-l-4 border-l-amber-400">
             <div className="flex items-center justify-between mb-3">
@@ -556,6 +587,18 @@ export default function PatientDossierPage() {
       {/* Onglet Nouvelle consultation */}
       {activeTab === "nouvelle" && (
         <form onSubmit={handleNewConsultation} className="space-y-5 max-w-3xl">
+          {consultationActive && (
+            <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+              <svg className="w-5 h-5 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm text-emerald-800">
+                <span className="font-semibold">Consultation gratuite</span> — Ce patient est dans sa période de validité (valable jusqu'au{" "}
+                <span className="font-bold">{new Date(consultationActive.valide_jusqu).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}</span>).
+                Aucun frais ne sera comptabilisé.
+              </p>
+            </div>
+          )}
           <div className="card">
             <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
               <span className="w-6 h-6 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-xs font-bold">1</span>
