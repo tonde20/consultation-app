@@ -106,6 +106,8 @@ export default function PatientDossierPage() {
   const isDrawingRef = useRef(false);
   const [editingAntecedents, setEditingAntecedents] = useState(false);
   const [antForm, setAntForm] = useState({ antecedents_medicaux: "", antecedents_chirurgicaux: "" });
+  const [tailleLocked, setTailleLocked] = useState(false);
+  const taillePrefillRef = useRef(false);
 
   const [editModal, setEditModal] = useState<Consultation | null>(null);
   const [editForm, setEditForm] = useState({
@@ -207,6 +209,8 @@ export default function PatientDossierPage() {
   };
 
   const resetConsultForm = () => {
+    taillePrefillRef.current = false; // Permettre un nouveau pré-remplissage après mise à jour des données
+    setTailleLocked(false);
     setConsultForm({ motif: "", examen_physique: "", diagnostic: "", notes: "", tension: "", temperature: "", pouls: "", poids: "", taille: "", type_prise_en_charge: "ambulatoire", service_hospitalisation: "", prescriptions: [{ medicament: "", posologie: "", duree: "" }] });
     setExamensCategories(new Set());
     setExamensCoches(new Set());
@@ -235,9 +239,9 @@ export default function PatientDossierPage() {
         : "Consultation enregistrée avec succès";
       setMessage({ type: "success", text: msg });
       setActiveTab("dossier");
+      resetConsultForm(); // Réinitialiser avant le rechargement pour permettre le nouveau pré-remplissage
       const updated = await fetch(`/api/patients/${code}`);
       if (updated.ok) setData(await updated.json());
-      resetConsultForm();
     } else {
       const errData = await res.json().catch(() => ({}));
       setMessage({ type: "error", text: errData.error || "Erreur lors de l'enregistrement" });
@@ -466,6 +470,18 @@ export default function PatientDossierPage() {
       setTimeout(() => setupCanvas(), 100);
     }
   }, [activeTab]);
+
+  // Pré-remplir la taille depuis la dernière consultation enregistrée
+  useEffect(() => {
+    if (data && !taillePrefillRef.current) {
+      const lastTaille = data.consultations.find(c => c.taille)?.taille || "";
+      if (lastTaille) {
+        setConsultForm(f => ({ ...f, taille: lastTaille }));
+        setTailleLocked(true);
+      }
+      taillePrefillRef.current = true;
+    }
+  }, [data]);
 
   const setupCanvas = () => {
     const canvas = canvasRef.current;
@@ -1132,8 +1148,40 @@ export default function PatientDossierPage() {
                 <input type="text" value={consultForm.poids} onChange={e => setConsultForm(f => ({ ...f, poids: e.target.value }))} className="input-field" placeholder="65" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Taille (cm)</label>
-                <input type="text" value={consultForm.taille} onChange={e => setConsultForm(f => ({ ...f, taille: e.target.value }))} className="input-field" placeholder="170" />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
+                    Taille (cm)
+                    {tailleLocked && (
+                      <span className="text-[10px] bg-teal-50 text-teal-600 border border-teal-200 px-1.5 py-0.5 rounded font-medium leading-none">
+                        Antérieure
+                      </span>
+                    )}
+                  </label>
+                  {tailleLocked && (
+                    <button
+                      type="button"
+                      onClick={() => setTailleLocked(false)}
+                      className="text-[10px] text-primary-500 hover:text-primary-700 font-medium underline"
+                    >
+                      ✏️ Modifier
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={consultForm.taille}
+                    onChange={e => setConsultForm(f => ({ ...f, taille: e.target.value }))}
+                    className={`input-field transition-colors ${tailleLocked ? "bg-teal-50 border-teal-200 text-teal-800 font-medium cursor-default" : ""}`}
+                    placeholder="170"
+                    readOnly={tailleLocked}
+                  />
+                  {tailleLocked && (
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-teal-400 pointer-events-none text-sm">
+                      🔒
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             {imcEnCours && (() => {
