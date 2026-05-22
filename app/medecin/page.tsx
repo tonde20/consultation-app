@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 interface PatientResult {
@@ -11,6 +11,25 @@ interface PatientResult {
   sexe: string;
   telephone: string;
   decede: number;
+}
+
+interface DashboardStats {
+  patientsThisMonth: number;
+  consultationsThisMonth: number;
+  rdv: {
+    en_attente: number;
+    confirme: number;
+    effectue: number;
+    annule: number;
+  };
+  month: string;
+}
+
+function formatMonthFR(yyyymm: string) {
+  const months = ["janvier", "février", "mars", "avril", "mai", "juin",
+    "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  const [year, month] = yyyymm.split("-");
+  return `${months[parseInt(month) - 1]} ${year}`;
 }
 
 export default function MedecinDashboard() {
@@ -26,6 +45,14 @@ export default function MedecinDashboard() {
   });
   const [createLoading, setCreateLoading] = useState(false);
   const [createMessage, setCreateMessage] = useState({ type: "", text: "", code: "" });
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+
+  useEffect(() => {
+    fetch("/api/dashboard/medecin")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setStats(d))
+      .catch(() => {});
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +62,6 @@ export default function MedecinDashboard() {
     setSearchError("");
     setResults([]);
 
-    // Essai direct par code exact
     const directRes = await fetch(`/api/patients/${q.toUpperCase()}`);
     if (directRes.ok) {
       router.push(`/medecin/patient/${q.toUpperCase()}`);
@@ -43,7 +69,6 @@ export default function MedecinDashboard() {
       return;
     }
 
-    // Sinon recherche par nom/prénom
     const listRes = await fetch(`/api/patients?search=${encodeURIComponent(q)}`);
     setSearching(false);
     if (listRes.ok) {
@@ -79,7 +104,7 @@ export default function MedecinDashboard() {
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Espace Médecin</h1>
           <p className="text-gray-500 text-sm mt-1">Recherchez un patient ou créez un nouveau dossier</p>
@@ -91,6 +116,58 @@ export default function MedecinDashboard() {
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
           Nouveau patient
         </button>
+      </div>
+
+      {/* ── Statistiques du mois ── */}
+      <div className="mb-8">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+          Activité de {stats ? formatMonthFR(stats.month) : "ce mois"}
+        </p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Patients consultés */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center text-lg">👥</div>
+              <p className="text-xs font-medium text-gray-500 leading-tight">Patients<br />consultés</p>
+            </div>
+            <p className="text-3xl font-bold text-primary-600 leading-none">
+              {stats ? stats.patientsThisMonth : <span className="text-gray-200 animate-pulse">—</span>}
+            </p>
+          </div>
+
+          {/* RDV en attente */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-yellow-50 flex items-center justify-center text-lg">⏳</div>
+              <p className="text-xs font-medium text-gray-500 leading-tight">RDV en<br />attente</p>
+            </div>
+            <p className="text-3xl font-bold text-yellow-500 leading-none">
+              {stats ? stats.rdv.en_attente : <span className="text-gray-200 animate-pulse">—</span>}
+            </p>
+          </div>
+
+          {/* RDV confirmés */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center text-lg">✅</div>
+              <p className="text-xs font-medium text-gray-500 leading-tight">RDV<br />confirmés</p>
+            </div>
+            <p className="text-3xl font-bold text-green-500 leading-none">
+              {stats ? stats.rdv.confirme : <span className="text-gray-200 animate-pulse">—</span>}
+            </p>
+          </div>
+
+          {/* RDV effectués */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-lg">🏁</div>
+              <p className="text-xs font-medium text-gray-500 leading-tight">RDV<br />effectués</p>
+            </div>
+            <p className="text-3xl font-bold text-blue-500 leading-none">
+              {stats ? stats.rdv.effectue : <span className="text-gray-200 animate-pulse">—</span>}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Modal nouveau patient */}
