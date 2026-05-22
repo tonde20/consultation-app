@@ -65,9 +65,13 @@ export default function PatientDossierPage() {
 
   const [examensCategories, setExamensCategories] = useState<Set<string>>(new Set());
   const [examensCoches, setExamensCoches] = useState<Set<string>>(new Set());
+  const [examensIndications, setExamensIndications] = useState<Record<string, string>>({});
   const [autresBilanText, setAutresBilanText] = useState("");
+  const [autresBilanIndication, setAutresBilanIndication] = useState("");
   const [autresImagerieText, setAutresImagerieText] = useState("");
+  const [autresImagerieIndication, setAutresImagerieIndication] = useState("");
   const [autresText, setAutresText] = useState("");
+  const [autresIndication, setAutresIndication] = useState("");
   const [resultats, setResultats] = useState<Record<string, string>>({});
   const [showResultats, setShowResultats] = useState(false);
 
@@ -199,21 +203,21 @@ export default function PatientDossierPage() {
     if (examensCategories.has("bilan_sanguin")) {
       BILANS_SANGUINS.forEach(ex => {
         if (examensCoches.has(`bilan_sanguin:${ex}`))
-          list.push({ categorie: "bilan_sanguin", type_examen: ex, description: "", resultat: resultats[`bilan_sanguin:${ex}`] || "" });
+          list.push({ categorie: "bilan_sanguin", type_examen: ex, description: examensIndications[`bilan_sanguin:${ex}`] || "", resultat: resultats[`bilan_sanguin:${ex}`] || "" });
       });
       if (autresBilanText.trim())
-        list.push({ categorie: "bilan_sanguin", type_examen: autresBilanText.trim(), description: "Autre bilan sanguin", resultat: resultats[`bilan_sanguin:autres`] || "" });
+        list.push({ categorie: "bilan_sanguin", type_examen: autresBilanText.trim(), description: autresBilanIndication.trim(), resultat: resultats[`bilan_sanguin:autres`] || "" });
     }
     if (examensCategories.has("imagerie")) {
       BILANS_IMAGERIE.forEach(ex => {
         if (examensCoches.has(`imagerie:${ex}`))
-          list.push({ categorie: "imagerie", type_examen: ex, description: "", resultat: resultats[`imagerie:${ex}`] || "" });
+          list.push({ categorie: "imagerie", type_examen: ex, description: examensIndications[`imagerie:${ex}`] || "", resultat: resultats[`imagerie:${ex}`] || "" });
       });
       if (autresImagerieText.trim())
-        list.push({ categorie: "imagerie", type_examen: autresImagerieText.trim(), description: "Autre imagerie", resultat: resultats[`imagerie:autres`] || "" });
+        list.push({ categorie: "imagerie", type_examen: autresImagerieText.trim(), description: autresImagerieIndication.trim(), resultat: resultats[`imagerie:autres`] || "" });
     }
     if (examensCategories.has("autres") && autresText.trim())
-      list.push({ categorie: "autres", type_examen: autresText.trim(), description: "", resultat: resultats[`autres:autres`] || "" });
+      list.push({ categorie: "autres", type_examen: autresText.trim(), description: autresIndication.trim(), resultat: resultats[`autres:autres`] || "" });
     return list;
   };
 
@@ -223,7 +227,10 @@ export default function PatientDossierPage() {
     setConsultForm({ motif: "", examen_physique: "", diagnostic: "", notes: "", tension: "", temperature: "", pouls: "", poids: "", taille: "", type_prise_en_charge: "ambulatoire", service_hospitalisation: "", prescriptions: [{ medicament: "", posologie: "", duree: "" }] });
     setExamensCategories(new Set());
     setExamensCoches(new Set());
-    setAutresBilanText(""); setAutresImagerieText(""); setAutresText("");
+    setExamensIndications({});
+    setAutresBilanText(""); setAutresBilanIndication("");
+    setAutresImagerieText(""); setAutresImagerieIndication("");
+    setAutresText(""); setAutresIndication("");
     setResultats({}); setShowResultats(false);
   };
 
@@ -1309,26 +1316,46 @@ export default function PatientDossierPage() {
                 {examensCategories.has("bilan_sanguin") && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                     <p className="text-xs font-bold text-red-700 uppercase tracking-wide mb-3">🩸 Bilans sanguins</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-                      {BILANS_SANGUINS.map(ex => (
-                        <label key={ex} className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={examensCoches.has(`bilan_sanguin:${ex}`)}
-                            onChange={e => {
-                              const s = new Set(examensCoches);
-                              e.target.checked ? s.add(`bilan_sanguin:${ex}`) : s.delete(`bilan_sanguin:${ex}`);
-                              setExamensCoches(s);
-                            }}
-                            className="rounded text-red-600"
-                          />
-                          <span className="text-gray-700">{ex}</span>
-                        </label>
-                      ))}
+                    <div className="space-y-2 mb-3">
+                      {BILANS_SANGUINS.map(ex => {
+                        const key = `bilan_sanguin:${ex}`;
+                        const checked = examensCoches.has(key);
+                        return (
+                          <div key={ex}>
+                            <label className="flex items-center gap-2 text-sm cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={e => {
+                                  const s = new Set(examensCoches);
+                                  e.target.checked ? s.add(key) : s.delete(key);
+                                  setExamensCoches(s);
+                                }}
+                                className="rounded text-red-600 flex-shrink-0"
+                              />
+                              <span className={`${checked ? "font-medium text-gray-800" : "text-gray-600"}`}>{ex}</span>
+                            </label>
+                            {checked && (
+                              <div className="mt-1 ml-5">
+                                <input
+                                  type="text"
+                                  value={examensIndications[key] || ""}
+                                  onChange={e => setExamensIndications(prev => ({ ...prev, [key]: e.target.value }))}
+                                  className="input-field text-xs py-1"
+                                  placeholder="Indication / précision (optionnel)..."
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div>
+                    <div className="border-t border-red-200 pt-3">
                       <label className="block text-xs font-medium text-red-700 mb-1">Autres bilans sanguins (préciser) :</label>
                       <input type="text" value={autresBilanText} onChange={e => setAutresBilanText(e.target.value)} className="input-field text-sm" placeholder="Ex : Frottis sanguin, Lipidogramme..." />
+                      {autresBilanText.trim() && (
+                        <input type="text" value={autresBilanIndication} onChange={e => setAutresBilanIndication(e.target.value)} className="input-field text-xs mt-1" placeholder="Indication / précision (optionnel)..." />
+                      )}
                     </div>
                   </div>
                 )}
@@ -1336,26 +1363,46 @@ export default function PatientDossierPage() {
                 {examensCategories.has("imagerie") && (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-3">🔬 Imagérie</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-                      {BILANS_IMAGERIE.map(ex => (
-                        <label key={ex} className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={examensCoches.has(`imagerie:${ex}`)}
-                            onChange={e => {
-                              const s = new Set(examensCoches);
-                              e.target.checked ? s.add(`imagerie:${ex}`) : s.delete(`imagerie:${ex}`);
-                              setExamensCoches(s);
-                            }}
-                            className="rounded text-blue-600"
-                          />
-                          <span className="text-gray-700">{ex}</span>
-                        </label>
-                      ))}
+                    <div className="space-y-2 mb-3">
+                      {BILANS_IMAGERIE.map(ex => {
+                        const key = `imagerie:${ex}`;
+                        const checked = examensCoches.has(key);
+                        return (
+                          <div key={ex}>
+                            <label className="flex items-center gap-2 text-sm cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={e => {
+                                  const s = new Set(examensCoches);
+                                  e.target.checked ? s.add(key) : s.delete(key);
+                                  setExamensCoches(s);
+                                }}
+                                className="rounded text-blue-600 flex-shrink-0"
+                              />
+                              <span className={`${checked ? "font-medium text-gray-800" : "text-gray-600"}`}>{ex}</span>
+                            </label>
+                            {checked && (
+                              <div className="mt-1 ml-5">
+                                <input
+                                  type="text"
+                                  value={examensIndications[key] || ""}
+                                  onChange={e => setExamensIndications(prev => ({ ...prev, [key]: e.target.value }))}
+                                  className="input-field text-xs py-1"
+                                  placeholder="Indication / précision (optionnel)..."
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div>
+                    <div className="border-t border-blue-200 pt-3">
                       <label className="block text-xs font-medium text-blue-700 mb-1">Autre imagerie (préciser) :</label>
                       <input type="text" value={autresImagerieText} onChange={e => setAutresImagerieText(e.target.value)} className="input-field text-sm" placeholder="Ex : Scanner, IRM..." />
+                      {autresImagerieText.trim() && (
+                        <input type="text" value={autresImagerieIndication} onChange={e => setAutresImagerieIndication(e.target.value)} className="input-field text-xs mt-1" placeholder="Indication / précision (optionnel)..." />
+                      )}
                     </div>
                   </div>
                 )}
@@ -1364,6 +1411,9 @@ export default function PatientDossierPage() {
                   <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                     <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">📋 Autres examens</p>
                     <input type="text" value={autresText} onChange={e => setAutresText(e.target.value)} className="input-field text-sm" placeholder="Précisez l'examen demandé..." />
+                    {autresText.trim() && (
+                      <input type="text" value={autresIndication} onChange={e => setAutresIndication(e.target.value)} className="input-field text-xs mt-2" placeholder="Indication / précision (optionnel)..." />
+                    )}
                   </div>
                 )}
               </div>
