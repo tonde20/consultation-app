@@ -18,231 +18,293 @@ export default async function HomePage() {
     if (s?.value) etablissement = s.value;
   } catch {}
 
-  const now = new Date();
-  const dateStr = now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const dateStr = new Date().toLocaleDateString("fr-FR", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+  const dateCapitalized = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col text-white relative select-none"
-      style={{ background: "linear-gradient(145deg,#020b10 0%,#071820 35%,#071e1b 65%,#030f0d 100%)" }}>
+    <div
+      className="h-screen overflow-hidden flex flex-col relative select-none"
+      style={{ background: "linear-gradient(150deg,#f0fdf9 0%,#ecfdf5 40%,#f0fdfa 70%,#f0feff 100%)" }}
+    >
+      {/* ─── Décorations arrière-plan ─── */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
+        {/* Stéthoscope — gauche */}
+        <svg className="absolute -left-10 top-16 opacity-[0.06]" width="320" height="420"
+          fill="none" stroke="#0d9488" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="95" cy="38" r="16"/>
+          <circle cx="195" cy="38" r="16"/>
+          <path d="M95 54 Q95 95 145 115 Q195 95 195 54"/>
+          <path d="M145 115 Q135 165 95 210 Q58 255 55 315"/>
+          <circle cx="55" cy="315" r="38"/>
+          <circle cx="55" cy="315" r="22"/>
+        </svg>
 
-      {/* ── Arrière-plan décoratif ── */}
-      <div className="absolute inset-0 pointer-events-none" aria-hidden>
-        <svg className="w-full h-full" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
-              <circle cx="1.5" cy="1.5" r="1.5" fill="rgba(255,255,255,0.04)"/>
-            </pattern>
-            <radialGradient id="glow1" cx="80%" cy="30%" r="50%">
-              <stop offset="0%" stopColor="#0d9488" stopOpacity="0.15"/>
-              <stop offset="100%" stopColor="#0d9488" stopOpacity="0"/>
-            </radialGradient>
-            <radialGradient id="glow2" cx="20%" cy="75%" r="45%">
-              <stop offset="0%" stopColor="#16a34a" stopOpacity="0.10"/>
-              <stop offset="100%" stopColor="#16a34a" stopOpacity="0"/>
-            </radialGradient>
-          </defs>
-
-          {/* Dot grid */}
-          <rect width="1440" height="900" fill="url(#dots)"/>
-          {/* Ambient glows */}
-          <rect width="1440" height="900" fill="url(#glow1)"/>
-          <rect width="1440" height="900" fill="url(#glow2)"/>
-
-          {/* Grand croix médicale - filigrane */}
-          <g opacity="0.03" transform="translate(680,420)">
-            <rect x="-22" y="-110" width="44" height="220" rx="8" fill="white"/>
-            <rect x="-110" y="-22" width="220" height="44" rx="8" fill="white"/>
-          </g>
-
-          {/* Ligne ECG en bas */}
-          <polyline
-            points="0,855 120,855 170,790 220,918 270,820 310,855 520,855 570,800 610,875 640,855 1440,855"
-            fill="none" stroke="rgba(45,212,191,0.18)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-
-          {/* Petits éléments décoratifs */}
-          <circle cx="72" cy="180" r="60" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>
-          <circle cx="72" cy="180" r="100" fill="none" stroke="rgba(255,255,255,0.02)" strokeWidth="1"/>
-          <circle cx="1380" cy="700" r="80" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>
-          <circle cx="1380" cy="700" r="130" fill="none" stroke="rgba(255,255,255,0.02)" strokeWidth="1"/>
-
-          {/* Croix accent top-right */}
-          <g fill="rgba(45,212,191,0.12)">
-            <rect x="1350" y="80"  width="8" height="28" rx="2"/>
-            <rect x="1340" y="90"  width="28" height="8"  rx="2"/>
-          </g>
-          {/* Croix accent bottom-left */}
-          <g fill="rgba(74,222,128,0.10)">
-            <rect x="55" y="790" width="6" height="22" rx="2"/>
-            <rect x="47" y="798" width="22" height="6"  rx="2"/>
-          </g>
+        {/* Feuilles — droite */}
+        <svg className="absolute -right-6 top-28 opacity-[0.06]" width="280" height="400"
+          fill="none" stroke="#16a34a" strokeWidth="4.5" strokeLinecap="round">
+          <path d="M240 395 Q195 300 215 195 Q232 100 175 28"/>
+          <path d="M215 195 Q158 165 122 195 Q158 226 215 195Z" strokeWidth="3"/>
+          <path d="M225 288 Q168 258 132 284 Q167 312 225 288Z" strokeWidth="3"/>
+          <path d="M210 122 Q153 92 120 120 Q152 150 210 122Z" strokeWidth="3"/>
+          <path d="M238 348 Q275 316 280 348 Q265 376 238 348Z" strokeWidth="3"/>
+          <path d="M192 62 Q228 35 242 60 Q224 86 192 62Z" strokeWidth="3"/>
         </svg>
       </div>
 
-      {/* ── Header ── */}
-      <header className="relative z-10 flex items-center justify-between px-8 py-3.5 flex-shrink-0"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      {/* ─── Header ─── */}
+      <header className="relative z-10 flex items-center justify-between px-8 py-3.5 flex-shrink-0 bg-white/80 backdrop-blur-sm"
+        style={{ borderBottom: "1px solid rgba(13,148,136,0.12)" }}>
+        {/* Logo + libellé */}
         <div className="flex items-center gap-3">
-          {/* Croix médicale mini */}
-          <div className="w-7 h-7 relative flex-shrink-0">
-            <div className="absolute inset-0 rounded-md" style={{ background: "linear-gradient(135deg,#16a34a,#0d9488)", opacity: 0.9 }}/>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <svg viewBox="0 0 20 20" className="w-4 h-4" fill="white">
-                <rect x="8" y="2" width="4" height="16" rx="1"/>
-                <rect x="2" y="8" width="16" height="4" rx="1"/>
-              </svg>
-            </div>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0"
+            style={{ background: "linear-gradient(135deg,#0d9488,#059669)" }}>
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="white">
+              <path d="M12 1.5L3.75 5.25v5.25c0 5.25 3.525 10.125 8.25 11.25 4.725-1.125 8.25-6 8.25-11.25V5.25L12 1.5z" opacity="0.9"/>
+              <rect x="10.5" y="7.5" width="3" height="9" rx="1" fill="white"/>
+              <rect x="7.5" y="10.5" width="9" height="3" rx="1" fill="white"/>
+            </svg>
           </div>
-          <span className="text-xs font-bold uppercase tracking-[0.22em] text-white/60">Service de consultation médecin</span>
+          <span className="text-xs font-bold uppercase tracking-[0.22em] text-teal-700">
+            Service de consultation médecin
+          </span>
         </div>
-        <span className="text-xs text-white/25 capitalize hidden md:block">{dateStr}</span>
+
+        {/* Badge date */}
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-50 border border-teal-100">
+          <svg className="w-3.5 h-3.5 text-teal-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <span className="text-xs font-medium text-teal-700">{dateCapitalized}</span>
+        </div>
       </header>
 
-      {/* ── Titre établissement ── */}
-      <div className="relative z-10 text-center py-5 flex-shrink-0">
-        <p className="text-[10px] uppercase tracking-[0.35em] text-white/30 mb-2">Système de gestion médicale</p>
-        <h1 className="font-black leading-none" style={{ fontSize: "clamp(1.6rem,3.5vw,2.6rem)" }}>
-          <span style={{
-            backgroundImage: "linear-gradient(90deg,#4ade80 0%,#2dd4bf 45%,#22d3ee 80%,#60a5fa 100%)",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-            filter: "drop-shadow(0 0 24px rgba(45,212,191,0.3))"
-          }}>
-            {etablissement}
-          </span>
+      {/* ─── Titre établissement ─── */}
+      <div className="relative z-10 text-center py-4 flex-shrink-0">
+        <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-gray-400 mb-1.5">
+          Système de gestion médicale
+        </p>
+        <h1 className="font-black leading-tight text-teal-700"
+          style={{ fontSize: "clamp(1.4rem,2.8vw,2.2rem)", letterSpacing: "-0.01em" }}>
+          {etablissement}
         </h1>
-        {/* Ligne décorative sous le titre */}
-        <div className="flex items-center justify-center gap-3 mt-3">
-          <div className="h-px w-16" style={{ background: "linear-gradient(90deg,transparent,rgba(45,212,191,0.4))" }}/>
-          <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#2dd4bf" }}/>
-          <div className="h-px w-16" style={{ background: "linear-gradient(90deg,rgba(45,212,191,0.4),transparent)" }}/>
+        {/* Ligne ECG décorative */}
+        <div className="flex items-center justify-center mt-3">
+          <svg width="200" height="22" viewBox="0 0 200 22" fill="none">
+            <polyline
+              points="0,11 35,11 44,2 53,20 60,8 68,11 100,11 109,3 118,19 123,11 200,11"
+              stroke="#0d9488" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+            />
+          </svg>
         </div>
       </div>
 
-      {/* ── Corps principal ── */}
+      {/* ─── Corps principal ─── */}
       <div className="relative z-10 flex-1 flex gap-5 px-8 pb-5 overflow-hidden">
 
-        {/* Colonne gauche — Serment d'Hippocrate */}
-        <div className="flex-1 flex flex-col justify-center">
-          <div className="relative rounded-2xl h-full flex flex-col justify-center px-8 py-8 overflow-hidden"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", backdropFilter: "blur(20px)" }}>
+        {/* GAUCHE — Carte Hippocrate */}
+        <div className="flex-[1.05] rounded-2xl overflow-hidden relative flex flex-col shadow-lg"
+          style={{ background: "linear-gradient(135deg,#0f766e 0%,#065f46 55%,#047857 100%)" }}>
 
-            {/* Guillemet décoratif */}
-            <div className="absolute top-5 left-6 text-7xl font-serif leading-none pointer-events-none"
-              style={{ color: "rgba(45,212,191,0.15)", lineHeight: 1 }}>&ldquo;</div>
+          {/* Buste Hippocrate — SVG illustratif */}
+          <div className="absolute right-0 top-0 bottom-0 flex items-end justify-end"
+            style={{ width: "48%", paddingRight: "1.5rem", paddingBottom: "0" }}>
+            <svg viewBox="0 0 200 300" fill="none" xmlns="http://www.w3.org/2000/svg"
+              className="w-full opacity-[0.28]" style={{ maxHeight: "92%" }}>
+              {/* Couronne de laurier */}
+              <path d="M45 58 Q52 28 100 22 Q148 28 155 58" stroke="rgba(255,255,255,0.3)" strokeWidth="2" fill="none"/>
+              <path d="M52 46 Q44 36 52 30 Q61 37 52 46Z" fill="rgba(255,255,255,0.18)"/>
+              <path d="M72 31 Q68 19 77 17 Q83 26 72 31Z" fill="rgba(255,255,255,0.18)"/>
+              <path d="M148 46 Q156 36 148 30 Q139 37 148 46Z" fill="rgba(255,255,255,0.18)"/>
+              <path d="M128 31 Q132 19 123 17 Q117 26 128 31Z" fill="rgba(255,255,255,0.18)"/>
+              <path d="M100 22 Q98 12 100 10 Q102 12 100 22Z" fill="rgba(255,255,255,0.2)"/>
+              {/* Tête */}
+              <ellipse cx="100" cy="86" rx="55" ry="64" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5"/>
+              {/* Yeux */}
+              <ellipse cx="83" cy="78" rx="9" ry="7" fill="rgba(255,255,255,0.13)" stroke="rgba(255,255,255,0.22)" strokeWidth="1"/>
+              <ellipse cx="117" cy="78" rx="9" ry="7" fill="rgba(255,255,255,0.13)" stroke="rgba(255,255,255,0.22)" strokeWidth="1"/>
+              {/* Nez */}
+              <path d="M100 86 Q96 102 88 109" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" fill="none"/>
+              {/* Moustache */}
+              <path d="M78 118 Q100 125 122 118" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" fill="none"/>
+              {/* Barbe */}
+              <path d="M48 108 Q40 145 44 170 Q56 198 80 205 Q100 210 120 205 Q144 198 156 170 Q160 145 152 108"
+                fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.18)" strokeWidth="1"/>
+              <path d="M60 122 Q52 152 56 174 Q66 193 78 198" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" fill="none"/>
+              <path d="M80 128 Q74 159 77 181 Q85 196 90 202" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" fill="none"/>
+              <path d="M100 130 Q98 162 99 185 Q100 199 100 205" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" fill="none"/>
+              <path d="M120 128 Q126 159 123 181 Q115 196 110 202" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" fill="none"/>
+              <path d="M140 122 Q148 152 144 174 Q134 193 122 198" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" fill="none"/>
+              {/* Cou */}
+              <rect x="85" y="143" width="30" height="22" rx="6" fill="rgba(255,255,255,0.09)" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
+              {/* Toge / épaules */}
+              <path d="M8 185 Q2 230 0 278 L200 278 Q198 230 192 185 Q172 167 148 172 L100 178 L52 172 Q28 167 8 185Z"
+                fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5"/>
+              <path d="M28 192 Q18 232 24 270" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" fill="none"/>
+              <path d="M172 192 Q182 232 176 270" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" fill="none"/>
+              <path d="M55 178 Q40 212 44 252" stroke="rgba(255,255,255,0.08)" strokeWidth="1" fill="none"/>
+              <path d="M80 175 Q70 210 72 248" stroke="rgba(255,255,255,0.08)" strokeWidth="1" fill="none"/>
+              {/* Socle */}
+              <rect x="65" y="276" width="70" height="10" rx="3" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
+              <rect x="55" y="284" width="90" height="8" rx="2" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
+            </svg>
+          </div>
 
-            {/* Accent couleur haut */}
-            <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl"
-              style={{ background: "linear-gradient(90deg,#16a34a,#0d9488,#0891b2)" }}/>
+          {/* Contenu de la carte */}
+          <div className="relative z-10 flex flex-col justify-between h-full p-7">
+            <div>
+              {/* Grand guillemet */}
+              <div className="text-8xl font-serif leading-none text-white/15 -ml-1 mb-0 -mt-1">❝</div>
 
-            <div className="relative">
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] mb-5"
-                style={{ color: "#2dd4bf" }}>
-                — Extrait du serment d'Hippocrate
+              <p className="text-[10px] font-bold uppercase tracking-[0.28em] mb-4"
+                style={{ color: "rgba(153,246,228,0.85)" }}>
+                Extrait du serment d'Hippocrate
               </p>
 
-              <blockquote className="text-white/70 leading-[1.9] italic"
-                style={{ fontSize: "clamp(0.82rem,1.1vw,0.95rem)" }}>
-                Je ne ferai jamais usage de mes connaissances contre les lois de l'humanité.
-                Je ferai tout pour soulager les souffrances.
-                Je ne prolongerai pas abusivement les agonies.
+              <blockquote className="text-white/85 italic leading-[1.85]"
+                style={{ fontSize: "clamp(0.78rem,1vw,0.93rem)", maxWidth: "57%" }}>
+                Je ne ferai jamais usage de mes connaissances contre les lois de l'humanité.<br/>
+                Je ferai tout pour soulager les souffrances.<br/>
+                Je ne prolongerai pas abusivement les agonies.<br/>
                 Je ne provoquerai jamais la mort délibérément.
               </blockquote>
 
-              <div className="mt-6 flex items-center gap-3">
-                <div className="h-px flex-1" style={{ background: "linear-gradient(90deg,rgba(45,212,191,0.3),transparent)" }}/>
-                <span className="text-xs text-white/25 italic">Hippocrate, ~400 av. J.-C.</span>
+              <div className="flex items-center gap-3 mt-5" style={{ maxWidth: "57%" }}>
+                <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.2)" }}/>
+                <span className="text-xs italic" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  Hippocrate, ~400 av. J.-C.
+                </span>
               </div>
             </div>
 
-            {/* Copyright bas */}
-            <p className="absolute bottom-4 right-6 text-[10px] text-white/15">
-              &copy; {new Date().getFullYear()} {etablissement}
-            </p>
+            {/* Badges bas de carte */}
+            <div className="flex flex-wrap gap-2 pt-5">
+              {/* Confidentialité */}
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.1)" }}>
+                <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "rgba(153,246,228,0.85)" }}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+                <span className="text-xs text-white/75">Confidentialité assurée</span>
+              </div>
+              {/* Données */}
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.1)" }}>
+                <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "rgba(153,246,228,0.85)" }}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                <span className="text-xs text-white/75">Données sécurisées</span>
+              </div>
+              {/* Humain */}
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.1)" }}>
+                <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "rgba(153,246,228,0.85)" }}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                </svg>
+                <span className="text-xs text-white/75">Soins centrés sur l'humain</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Colonne droite — Accès */}
-        <div className="flex-1 flex flex-col justify-center gap-4">
+        {/* DROITE — Accès connexion */}
+        <div className="flex-[0.95] flex flex-col justify-center gap-4 pl-2">
           <div className="mb-1">
-            <h2 className="text-base font-bold text-white/75 tracking-wide">Accéder à votre espace</h2>
-            <p className="text-xs text-white/30 mt-0.5">Sélectionnez votre profil pour vous connecter</p>
+            <h2 className="text-lg font-black uppercase tracking-wider text-gray-800">
+              Accéder à votre espace
+            </h2>
+            <p className="text-sm text-gray-400 mt-0.5">
+              Sélectionnez votre profil pour vous connecter
+            </p>
           </div>
 
           {/* Carte Médecin */}
-          <Link href="/login/medecin" className="group block rounded-2xl transition-all duration-300 hover:-translate-y-0.5"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-            onMouseEnter={undefined}>
-            <div className="relative overflow-hidden rounded-2xl">
-              {/* Hover overlay */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"
-                style={{ background: "linear-gradient(135deg,rgba(22,163,74,0.08),rgba(13,148,136,0.06))" }}/>
-              {/* Top accent */}
-              <div className="absolute top-0 left-0 right-0 h-px"
-                style={{ background: "linear-gradient(90deg,transparent,rgba(74,222,128,0.3),transparent)", opacity: 0 }}/>
-              {/* Left accent bar */}
-              <div className="absolute left-0 top-0 bottom-0 w-0.5 rounded-l-2xl"
-                style={{ background: "linear-gradient(180deg,#16a34a,#0d9488)" }}/>
-
-              <div className="flex items-center gap-5 px-7 py-5">
-                {/* Icône */}
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110"
-                  style={{ background: "linear-gradient(135deg,rgba(22,163,74,0.25),rgba(13,148,136,0.2))", border: "1px solid rgba(74,222,128,0.2)" }}>
-                  <svg className="w-6 h-6" style={{ color: "#4ade80" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
-                  </svg>
-                </div>
-                {/* Texte */}
-                <div className="flex-1">
-                  <p className="font-bold text-white text-base group-hover:text-green-300 transition-colors duration-200">Médecin</p>
-                  <p className="text-xs text-white/40 mt-0.5 leading-snug">Dossiers patients · Consultations · Certificats médicaux</p>
-                </div>
-                {/* Flèche */}
-                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 group-hover:translate-x-1"
-                  style={{ background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.15)" }}>
-                  <svg className="w-4 h-4" style={{ color: "#4ade80" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/>
-                  </svg>
-                </div>
+          <Link href="/login/medecin"
+            className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 block overflow-hidden">
+            <div className="relative flex items-center gap-4 px-5 py-4">
+              {/* Barre gauche colorée */}
+              <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
+                style={{ background: "linear-gradient(180deg,#0d9488,#059669)" }}/>
+              {/* Icône */}
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ml-2"
+                style={{ background: "linear-gradient(135deg,#ccfbf1,#d1fae5)", border: "1px solid #99f6e4" }}>
+                <svg className="w-6 h-6 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+              </div>
+              {/* Texte */}
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-800 text-base group-hover:text-teal-700 transition-colors">
+                  Médecin
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5 leading-snug">
+                  Dossiers patients • Consultations • Certificats médicaux
+                </p>
+              </div>
+              {/* Flèche */}
+              <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
+                style={{ background: "linear-gradient(135deg,#0d9488,#059669)" }}>
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/>
+                </svg>
               </div>
             </div>
           </Link>
 
-          {/* Carte Admin */}
-          <Link href="/login/admin" className="group block rounded-2xl transition-all duration-300 hover:-translate-y-0.5"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-            <div className="relative overflow-hidden rounded-2xl">
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"
-                style={{ background: "linear-gradient(135deg,rgba(13,148,136,0.08),rgba(8,145,178,0.06))" }}/>
-              {/* Left accent bar */}
-              <div className="absolute left-0 top-0 bottom-0 w-0.5 rounded-l-2xl"
-                style={{ background: "linear-gradient(180deg,#0d9488,#0891b2)" }}/>
-
-              <div className="flex items-center gap-5 px-7 py-5">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110"
-                  style={{ background: "linear-gradient(135deg,rgba(13,148,136,0.25),rgba(8,145,178,0.2))", border: "1px solid rgba(94,234,212,0.2)" }}>
-                  <svg className="w-6 h-6" style={{ color: "#5eead4" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-white text-base group-hover:text-teal-300 transition-colors duration-200">Administrateur</p>
-                  <p className="text-xs text-white/40 mt-0.5 leading-snug">Personnel médical · Patients · Recettes · Paramètres</p>
-                </div>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 group-hover:translate-x-1"
-                  style={{ background: "rgba(94,234,212,0.1)", border: "1px solid rgba(94,234,212,0.15)" }}>
-                  <svg className="w-4 h-4" style={{ color: "#5eead4" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/>
-                  </svg>
-                </div>
+          {/* Carte Administrateur */}
+          <Link href="/login/admin"
+            className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 block overflow-hidden">
+            <div className="relative flex items-center gap-4 px-5 py-4">
+              <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
+                style={{ background: "linear-gradient(180deg,#0891b2,#0d9488)" }}/>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ml-2"
+                style={{ background: "linear-gradient(135deg,#cffafe,#ccfbf1)", border: "1px solid #a5f3fc" }}>
+                <svg className="w-6 h-6 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-800 text-base group-hover:text-cyan-700 transition-colors">
+                  Administrateur
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5 leading-snug">
+                  Personnel médical • Patients • Recettes • Paramètres
+                </p>
+              </div>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
+                style={{ background: "linear-gradient(135deg,#0891b2,#0d9488)" }}>
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/>
+                </svg>
               </div>
             </div>
           </Link>
 
-          {/* Note bas de page */}
-          <p className="text-[10px] text-white/18 text-center mt-1">
-            Accès réservé au personnel médical autorisé
-          </p>
+          {/* Note sécurité */}
+          <div className="flex items-center gap-2.5 mt-1 px-1">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+              <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+            </div>
+            <span className="text-xs text-gray-400">Accès réservé au personnel médical autorisé</span>
+          </div>
         </div>
+      </div>
+
+      {/* ─── Pied de page ─── */}
+      <div className="relative z-10 text-center pb-3 flex-shrink-0">
+        <p className="text-[10px] text-gray-300">© {new Date().getFullYear()} {etablissement}</p>
       </div>
     </div>
   );
