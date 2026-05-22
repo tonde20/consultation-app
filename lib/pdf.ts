@@ -1,6 +1,16 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+// ── Formatage de l'âge ────────────────────────────────────
+function formatAge(dateNaissance: string): string {
+  const diffMs = Date.now() - new Date(dateNaissance).getTime();
+  const years   = Math.floor(diffMs / (365.25 * 24 * 3600 * 1000));
+  if (years >= 5) return `${years} ans`;
+  const months  = Math.floor(diffMs / (30.44  * 24 * 3600 * 1000));
+  if (months >= 1) return `${months} mois`;
+  return `${Math.floor(diffMs / (24 * 3600 * 1000))} j`;
+}
+
 // ── Palette ──────────────────────────────────────────────
 const GREEN       = [22, 101, 52]   as [number,number,number];  // #166534
 const GREEN_LIGHT = [220, 252, 231] as [number,number,number];  // #dcfce7
@@ -94,8 +104,8 @@ function addPatientDoctorHeader(doc: jsPDF, patient: PatientInfo, consultation: 
   doc.setTextColor(...GRAY_MID);
   doc.text(`Code : ${patient.code}`, 18, y + 19);
   if (patient.date_naissance) {
-    const age = Math.floor((Date.now() - new Date(patient.date_naissance).getTime()) / (365.25*24*3600*1000));
-    doc.text(`Né(e) le ${new Date(patient.date_naissance).toLocaleDateString('fr-FR')} (${age} ans)`, 18, y + 24);
+    const age = formatAge(patient.date_naissance);
+    doc.text(`Né(e) le ${new Date(patient.date_naissance).toLocaleDateString('fr-FR')} (${age})`, 18, y + 24);
   }
 
   doc.setFontSize(9.5);
