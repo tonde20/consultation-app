@@ -341,8 +341,11 @@ export default async function HomePage() {
       </div>
 
       {/* ─── Pied de page ─── */}
-      <div className="relative z-10 text-center pb-3 flex-shrink-0">
+      <div className="relative z-10 flex items-end justify-between px-8 pb-3 flex-shrink-0">
         <p className="text-[10px] text-gray-300">© {new Date().getFullYear()} {etablissement}</p>
+        <p className="text-[10px] font-medium italic" style={{ color: "#166534" }}>
+          Created and Designed by Dr Salifou TONDE &nbsp;·&nbsp; +226 74 64 13 06
+        </p>
       </div>
     </div>
   );
