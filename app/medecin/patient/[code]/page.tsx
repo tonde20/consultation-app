@@ -3,6 +3,15 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { genererOrdonnance, genererExamens, genererCertificat, genererCertificatVisite } from "@/lib/pdf";
 
+function formatAge(dateNaissance: string): string {
+  const diffMs = Date.now() - new Date(dateNaissance).getTime();
+  const years = Math.floor(diffMs / (365.25 * 24 * 3600 * 1000));
+  if (years >= 5) return `${years} ans`;
+  const months = Math.floor(diffMs / (30.44 * 24 * 3600 * 1000));
+  if (months >= 1) return `${months} mois`;
+  return `${Math.floor(diffMs / (24 * 3600 * 1000))} j`;
+}
+
 interface Prescription { id: number; medicament: string; posologie: string; duree: string; }
 interface Examen { id: number; categorie: string; type_examen: string; description: string; resultat: string; }
 interface Consultation {
@@ -561,7 +570,7 @@ export default function PatientDossierPage() {
   if (!data) return <div className="p-8"><p className="text-red-600">Patient non trouvé.</p><button onClick={() => router.push("/medecin")} className="btn-secondary mt-4">Retour</button></div>;
 
   const { patient, consultations, rendez_vous, certificats } = data;
-  const age = patient.date_naissance ? Math.floor((Date.now() - new Date(patient.date_naissance).getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
+  const age = patient.date_naissance ? formatAge(patient.date_naissance) : null;
 
   // Consultation encore active (valide_jusqu >= aujourd'hui)
   const today = new Date().toISOString().split('T')[0];
@@ -889,7 +898,7 @@ export default function PatientDossierPage() {
               </div>
               <div className="flex flex-wrap gap-2 mt-1 text-sm text-gray-500">
                 <span className="font-mono text-primary-700 font-semibold bg-primary-100 px-2 py-0.5 rounded">{patient.code}</span>
-                {age && <span className="bg-white px-2 py-0.5 rounded border border-gray-200">{age} ans</span>}
+                {age && <span className="bg-white px-2 py-0.5 rounded border border-gray-200">{age}</span>}
                 <span className="bg-white px-2 py-0.5 rounded border border-gray-200">{patient.sexe === "M" ? "Masculin" : "Féminin"}</span>
                 {patient.telephone && <span>📱 {patient.telephone}</span>}
               </div>

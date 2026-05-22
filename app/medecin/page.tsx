@@ -2,6 +2,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+function formatAge(dateNaissance: string): string {
+  const diffMs = Date.now() - new Date(dateNaissance).getTime();
+  const years = Math.floor(diffMs / (365.25 * 24 * 3600 * 1000));
+  if (years >= 5) return `${years} ans`;
+  const months = Math.floor(diffMs / (30.44 * 24 * 3600 * 1000));
+  if (months >= 1) return `${months} mois`;
+  return `${Math.floor(diffMs / (24 * 3600 * 1000))} j`;
+}
+
 interface PatientResult {
   id: number;
   code: string;
@@ -288,7 +297,7 @@ export default function MedecinDashboard() {
                     <span className="font-mono text-xs text-primary-700 bg-primary-50 px-1.5 py-0.5 rounded">{p.code}</span>
                     {p.date_naissance && (
                       <span className="text-xs text-gray-400">
-                        {Math.floor((Date.now() - new Date(p.date_naissance).getTime()) / (365.25 * 24 * 3600 * 1000))} ans
+                        {formatAge(p.date_naissance)}
                       </span>
                     )}
                     <span className="text-xs text-gray-400">{p.sexe === "M" ? "Masculin" : "Féminin"}</span>

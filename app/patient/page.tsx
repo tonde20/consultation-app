@@ -1,6 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
 
+function formatAge(dateNaissance: string): string {
+  const diffMs = Date.now() - new Date(dateNaissance).getTime();
+  const years = Math.floor(diffMs / (365.25 * 24 * 3600 * 1000));
+  if (years >= 5) return `${years} ans`;
+  const months = Math.floor(diffMs / (30.44 * 24 * 3600 * 1000));
+  if (months >= 1) return `${months} mois`;
+  return `${Math.floor(diffMs / (24 * 3600 * 1000))} j`;
+}
+
 export default function PatientDashboard() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +33,7 @@ export default function PatientDashboard() {
 
   const { patient, consultations } = data;
   const lastConsult = consultations[0];
-  const age = patient.date_naissance ? Math.floor((Date.now() - new Date(patient.date_naissance).getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
+  const age = patient.date_naissance ? formatAge(patient.date_naissance) : null;
 
   return (
     <div className="p-8">
@@ -42,7 +51,7 @@ export default function PatientDashboard() {
             <h2 className="text-lg font-bold text-gray-800">{patient.prenom} {patient.nom}</h2>
             <div className="flex flex-wrap gap-3 mt-1 text-sm text-gray-500">
               <span className="font-mono text-primary-700 font-medium">{patient.code}</span>
-              {age && <span>{age} ans</span>}
+              {age && <span>{age}</span>}
               <span>{patient.sexe === "M" ? "Masculin" : "Féminin"}</span>
               {patient.telephone && <span>{patient.telephone}</span>}
             </div>
