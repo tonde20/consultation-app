@@ -108,48 +108,26 @@ export default async function HomePage() {
         <div className="flex-[1.05] rounded-2xl overflow-hidden relative flex flex-col shadow-lg"
           style={{ background: "linear-gradient(135deg,#0f766e 0%,#065f46 55%,#047857 100%)" }}>
 
-          {/* Buste Hippocrate — SVG illustratif */}
-          <div className="absolute right-0 top-0 bottom-0 flex items-end justify-end"
-            style={{ width: "48%", paddingRight: "1.5rem", paddingBottom: "0" }}>
-            <svg viewBox="0 0 200 300" fill="none" xmlns="http://www.w3.org/2000/svg"
-              className="w-full opacity-[0.28]" style={{ maxHeight: "92%" }}>
-              {/* Couronne de laurier */}
-              <path d="M45 58 Q52 28 100 22 Q148 28 155 58" stroke="rgba(255,255,255,0.3)" strokeWidth="2" fill="none"/>
-              <path d="M52 46 Q44 36 52 30 Q61 37 52 46Z" fill="rgba(255,255,255,0.18)"/>
-              <path d="M72 31 Q68 19 77 17 Q83 26 72 31Z" fill="rgba(255,255,255,0.18)"/>
-              <path d="M148 46 Q156 36 148 30 Q139 37 148 46Z" fill="rgba(255,255,255,0.18)"/>
-              <path d="M128 31 Q132 19 123 17 Q117 26 128 31Z" fill="rgba(255,255,255,0.18)"/>
-              <path d="M100 22 Q98 12 100 10 Q102 12 100 22Z" fill="rgba(255,255,255,0.2)"/>
-              {/* Tête */}
-              <ellipse cx="100" cy="86" rx="55" ry="64" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5"/>
-              {/* Yeux */}
-              <ellipse cx="83" cy="78" rx="9" ry="7" fill="rgba(255,255,255,0.13)" stroke="rgba(255,255,255,0.22)" strokeWidth="1"/>
-              <ellipse cx="117" cy="78" rx="9" ry="7" fill="rgba(255,255,255,0.13)" stroke="rgba(255,255,255,0.22)" strokeWidth="1"/>
-              {/* Nez */}
-              <path d="M100 86 Q96 102 88 109" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" fill="none"/>
-              {/* Moustache */}
-              <path d="M78 118 Q100 125 122 118" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" fill="none"/>
-              {/* Barbe */}
-              <path d="M48 108 Q40 145 44 170 Q56 198 80 205 Q100 210 120 205 Q144 198 156 170 Q160 145 152 108"
-                fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.18)" strokeWidth="1"/>
-              <path d="M60 122 Q52 152 56 174 Q66 193 78 198" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" fill="none"/>
-              <path d="M80 128 Q74 159 77 181 Q85 196 90 202" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" fill="none"/>
-              <path d="M100 130 Q98 162 99 185 Q100 199 100 205" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" fill="none"/>
-              <path d="M120 128 Q126 159 123 181 Q115 196 110 202" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" fill="none"/>
-              <path d="M140 122 Q148 152 144 174 Q134 193 122 198" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" fill="none"/>
-              {/* Cou */}
-              <rect x="85" y="143" width="30" height="22" rx="6" fill="rgba(255,255,255,0.09)" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
-              {/* Toge / épaules */}
-              <path d="M8 185 Q2 230 0 278 L200 278 Q198 230 192 185 Q172 167 148 172 L100 178 L52 172 Q28 167 8 185Z"
-                fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5"/>
-              <path d="M28 192 Q18 232 24 270" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" fill="none"/>
-              <path d="M172 192 Q182 232 176 270" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" fill="none"/>
-              <path d="M55 178 Q40 212 44 252" stroke="rgba(255,255,255,0.08)" strokeWidth="1" fill="none"/>
-              <path d="M80 175 Q70 210 72 248" stroke="rgba(255,255,255,0.08)" strokeWidth="1" fill="none"/>
-              {/* Socle */}
-              <rect x="65" y="276" width="70" height="10" rx="3" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
-              <rect x="55" y="284" width="90" height="8" rx="2" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
-            </svg>
+          {/* Buste Hippocrate — vraie photo (domaine public, Musée Pouchkine) */}
+          <div className="absolute right-0 top-0 bottom-0 pointer-events-none overflow-hidden"
+            style={{ width: "52%" }}>
+            {/* Dégradé gauche pour fondre l'image dans la carte */}
+            <div className="absolute inset-y-0 left-0 w-24 z-10"
+              style={{ background: "linear-gradient(to right, #0f766e, transparent)" }}/>
+            {/* Dégradé bas */}
+            <div className="absolute inset-x-0 bottom-0 h-24 z-10"
+              style={{ background: "linear-gradient(to top, #065f46, transparent)" }}/>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Hippocrates_pushkin.jpg/340px-Hippocrates_pushkin.jpg"
+              alt="Buste d'Hippocrate"
+              className="h-full w-full object-cover object-top"
+              style={{
+                filter: "grayscale(100%) brightness(1.1) contrast(0.85)",
+                mixBlendMode: "luminosity",
+                opacity: 0.55,
+              }}
+            />
           </div>
 
           {/* Contenu de la carte */}
