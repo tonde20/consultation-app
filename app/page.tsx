@@ -108,24 +108,23 @@ export default async function HomePage() {
         <div className="flex-[1.05] rounded-2xl overflow-hidden relative flex flex-col shadow-lg"
           style={{ background: "linear-gradient(135deg,#0f766e 0%,#065f46 55%,#047857 100%)" }}>
 
-          {/* Buste Hippocrate — vraie photo (domaine public, Musée Pouchkine) */}
+          {/* Buste Hippocrate — photo locale (public/hippocrate.jpg) */}
           <div className="absolute right-0 top-0 bottom-0 pointer-events-none overflow-hidden"
             style={{ width: "52%" }}>
             {/* Dégradé gauche pour fondre l'image dans la carte */}
-            <div className="absolute inset-y-0 left-0 w-24 z-10"
-              style={{ background: "linear-gradient(to right, #0f766e, transparent)" }}/>
+            <div className="absolute inset-y-0 left-0 w-28 z-10"
+              style={{ background: "linear-gradient(to right, #0f766e 30%, transparent)" }}/>
             {/* Dégradé bas */}
-            <div className="absolute inset-x-0 bottom-0 h-24 z-10"
-              style={{ background: "linear-gradient(to top, #065f46, transparent)" }}/>
+            <div className="absolute inset-x-0 bottom-0 h-28 z-10"
+              style={{ background: "linear-gradient(to top, #065f46 20%, transparent)" }}/>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Hippocrates_pushkin.jpg/340px-Hippocrates_pushkin.jpg"
-              alt="Buste d'Hippocrate"
+              src="/hippocrate.jpg"
+              alt=""
               className="h-full w-full object-cover object-top"
               style={{
-                filter: "grayscale(100%) brightness(1.1) contrast(0.85)",
-                mixBlendMode: "luminosity",
-                opacity: 0.55,
+                filter: "grayscale(100%) brightness(1.25) contrast(0.8) sepia(0.4) saturate(1.8) hue-rotate(128deg)",
+                opacity: 0.6,
               }}
             />
           </div>
