@@ -108,25 +108,86 @@ export default async function HomePage() {
         <div className="flex-[1.05] rounded-2xl overflow-hidden relative flex flex-col shadow-lg"
           style={{ background: "linear-gradient(135deg,#0f766e 0%,#065f46 55%,#047857 100%)" }}>
 
-          {/* Buste Hippocrate — photo locale (public/hippocrate.jpg) */}
-          <div className="absolute right-0 top-0 bottom-0 pointer-events-none overflow-hidden"
-            style={{ width: "52%" }}>
-            {/* Dégradé gauche pour fondre l'image dans la carte */}
-            <div className="absolute inset-y-0 left-0 w-28 z-10"
-              style={{ background: "linear-gradient(to right, #0f766e 30%, transparent)" }}/>
-            {/* Dégradé bas */}
-            <div className="absolute inset-x-0 bottom-0 h-28 z-10"
-              style={{ background: "linear-gradient(to top, #065f46 20%, transparent)" }}/>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/hippocrate.jpg"
-              alt=""
-              className="h-full w-full object-cover object-top"
-              style={{
-                filter: "grayscale(100%) brightness(1.25) contrast(0.8) sepia(0.4) saturate(1.8) hue-rotate(128deg)",
-                opacity: 0.6,
-              }}
-            />
+          {/* Décorations lumineuses — orbes, grille, croix médicale, ECG */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 520 360" fill="none" preserveAspectRatio="xMidYMid slice">
+              <defs>
+                {/* Halo central */}
+                <radialGradient id="orb1" cx="75%" cy="35%" r="40%">
+                  <stop offset="0%" stopColor="#5eead4" stopOpacity="0.22"/>
+                  <stop offset="100%" stopColor="#5eead4" stopOpacity="0"/>
+                </radialGradient>
+                {/* Halo bas-droit */}
+                <radialGradient id="orb2" cx="90%" cy="85%" r="35%">
+                  <stop offset="0%" stopColor="#4ade80" stopOpacity="0.16"/>
+                  <stop offset="100%" stopColor="#4ade80" stopOpacity="0"/>
+                </radialGradient>
+                {/* Halo haut-droite */}
+                <radialGradient id="orb3" cx="95%" cy="10%" r="28%">
+                  <stop offset="0%" stopColor="#a7f3d0" stopOpacity="0.18"/>
+                  <stop offset="100%" stopColor="#a7f3d0" stopOpacity="0"/>
+                </radialGradient>
+              </defs>
+
+              {/* Halos lumineux */}
+              <rect width="520" height="360" fill="url(#orb1)"/>
+              <rect width="520" height="360" fill="url(#orb2)"/>
+              <rect width="520" height="360" fill="url(#orb3)"/>
+
+              {/* Grille de points */}
+              {Array.from({ length: 10 }).map((_, row) =>
+                Array.from({ length: 14 }).map((_, col) => (
+                  <circle key={`${row}-${col}`}
+                    cx={280 + col * 22} cy={20 + row * 36}
+                    r="1.2" fill="rgba(255,255,255,0.07)"
+                  />
+                ))
+              )}
+
+              {/* Grand cercle décoratif — anneau lumineux droit */}
+              <circle cx="440" cy="180" r="115" stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
+              <circle cx="440" cy="180" r="85"  stroke="rgba(255,255,255,0.05)" strokeWidth="1"/>
+              <circle cx="440" cy="180" r="52"  stroke="rgba(94,234,212,0.1)"   strokeWidth="1.5"/>
+
+              {/* Arc lumineux */}
+              <path d="M 370 80 A 115 115 0 0 1 520 200"
+                stroke="rgba(94,234,212,0.18)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+              <path d="M 385 100 A 85 85 0 0 1 500 210"
+                stroke="rgba(167,243,208,0.12)" strokeWidth="1" fill="none" strokeLinecap="round"/>
+
+              {/* Croix médicale — grande, filigrane */}
+              <g opacity="0.07" transform="translate(395,140)">
+                <rect x="-10" y="-42" width="20" height="84" rx="5" fill="white"/>
+                <rect x="-42" y="-10" width="84" height="20" rx="5" fill="white"/>
+              </g>
+
+              {/* Petite croix médicale haut */}
+              <g opacity="0.13" transform="translate(470,48)">
+                <rect x="-4" y="-14" width="8" height="28" rx="2" fill="white"/>
+                <rect x="-14" y="-4" width="28" height="8" rx="2" fill="white"/>
+              </g>
+
+              {/* Ligne ECG décorative droite */}
+              <polyline
+                points="295,285 318,285 326,262 334,308 340,275 348,285 375,285 383,268 391,302 396,285 480,285"
+                stroke="rgba(94,234,212,0.25)" strokeWidth="1.8"
+                strokeLinecap="round" strokeLinejoin="round" fill="none"
+              />
+
+              {/* Étincelles / points lumineux */}
+              <circle cx="388" cy="95"  r="2.5" fill="rgba(167,243,208,0.5)"/>
+              <circle cx="420" cy="72"  r="1.5" fill="rgba(94,234,212,0.4)"/>
+              <circle cx="460" cy="110" r="2"   fill="rgba(255,255,255,0.3)"/>
+              <circle cx="500" cy="88"  r="1.5" fill="rgba(167,243,208,0.35)"/>
+              <circle cx="475" cy="240" r="2"   fill="rgba(94,234,212,0.3)"/>
+              <circle cx="445" cy="310" r="1.5" fill="rgba(167,243,208,0.25)"/>
+
+              {/* Trait diagonal décoratif */}
+              <line x1="310" y1="10" x2="520" y2="150"
+                stroke="rgba(255,255,255,0.04)" strokeWidth="1"/>
+              <line x1="330" y1="10" x2="520" y2="120"
+                stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>
+            </svg>
           </div>
 
           {/* Contenu de la carte */}
