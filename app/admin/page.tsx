@@ -109,10 +109,20 @@ export default async function AdminDashboard() {
       <div className="card mb-8">
         <h2 className="font-semibold text-gray-700 mb-1 flex items-center gap-2">
           <span className="w-1 h-5 bg-primary-500 rounded-full inline-block" />
-          Répartition des patients par médecin — 6 derniers mois
+          Répartition des patients par médecin
         </h2>
-        <p className="text-xs text-gray-400 mb-6">Nombre de patients distincts consultés, empilé par médecin</p>
-        <PatientsChart chartData={chartData} doctors={allDoctors} />
+        <p className="text-xs text-gray-400 mb-6">Patients distincts consultés — mois en cours et tendance 6 mois</p>
+        <PatientsChart
+          currentMonthData={doctorStatsMois
+            .filter((d: any) => parseInt(d.patient_count) > 0)
+            .map((d: any, i: number) => ({
+              name: `Dr. ${(d.doctor_name as string).split(" ")[0]} ${(d.doctor_name as string).split(" ").slice(1).join(" ").charAt(0)}.`,
+              patients: parseInt(d.patient_count) || 0,
+            }))}
+          currentMonth={formatMonthLabel(currentMonth)}
+          chartData={chartData}
+          doctors={allDoctors}
+        />
       </div>
 
       {/* Activité des médecins ce mois */}
