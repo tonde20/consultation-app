@@ -118,13 +118,22 @@ export default function MedecinDashboard() {
           <h1 className="text-2xl font-bold text-gray-800">Espace Médecin</h1>
           <p className="text-gray-500 text-sm mt-1">Recherchez un patient ou créez un nouveau dossier</p>
         </div>
-        <button
-          onClick={() => { setShowNewPatient(true); setCreateMessage({ type: "", text: "", code: "" }); }}
-          className="btn-primary flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          Nouveau patient
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push("/medecin/patient")}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            Liste des patients
+          </button>
+          <button
+            onClick={() => { setShowNewPatient(true); setCreateMessage({ type: "", text: "", code: "" }); }}
+            className="btn-primary flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            Nouveau patient
+          </button>
+        </div>
       </div>
 
       {/* ── Statistiques du mois ── */}
