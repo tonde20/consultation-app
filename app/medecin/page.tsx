@@ -2,26 +2,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-function formatAge(dateNaissance: string): string {
-  const diffMs = Date.now() - new Date(dateNaissance).getTime();
-  const years = Math.floor(diffMs / (365.25 * 24 * 3600 * 1000));
-  if (years >= 5) return `${years} ans`;
-  const months = Math.floor(diffMs / (30.44 * 24 * 3600 * 1000));
-  if (months >= 1) return `${months} mois`;
-  return `${Math.floor(diffMs / (24 * 3600 * 1000))} j`;
-}
-
-interface PatientResult {
-  id: number;
-  code: string;
-  nom: string;
-  prenom: string;
-  date_naissance: string;
-  sexe: string;
-  telephone: string;
-  decede: number;
-}
-
 interface DashboardStats {
   patientsThisMonth: number;
   consultationsThisMonth: number;
@@ -43,10 +23,6 @@ function formatMonthFR(yyyymm: string) {
 
 export default function MedecinDashboard() {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [results, setResults] = useState<PatientResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState("");
   const [showNewPatient, setShowNewPatient] = useState(false);
   const [newPatientForm, setNewPatientForm] = useState({
     nom: "", prenom: "", date_naissance: "", sexe: "M",
@@ -62,35 +38,6 @@ export default function MedecinDashboard() {
       .then(d => d && setStats(d))
       .catch(() => {});
   }, []);
-
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = search.trim();
-    if (!q) return;
-    setSearching(true);
-    setSearchError("");
-    setResults([]);
-
-    const directRes = await fetch(`/api/patients/${q.toUpperCase()}`);
-    if (directRes.ok) {
-      router.push(`/medecin/patient/${q.toUpperCase()}`);
-      setSearching(false);
-      return;
-    }
-
-    const listRes = await fetch(`/api/patients?search=${encodeURIComponent(q)}`);
-    setSearching(false);
-    if (listRes.ok) {
-      const data: PatientResult[] = await listRes.json();
-      if (data.length === 0) {
-        setSearchError("Aucun patient trouvé. Vérifiez l'orthographe ou le code.");
-      } else {
-        setResults(data);
-      }
-    } else {
-      setSearchError("Erreur lors de la recherche.");
-    }
-  };
 
   const handleCreatePatient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,7 +63,7 @@ export default function MedecinDashboard() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Espace Médecin</h1>
-          <p className="text-gray-500 text-sm mt-1">Recherchez un patient ou créez un nouveau dossier</p>
+          <p className="text-gray-500 text-sm mt-1">Consultez la liste des patients ou créez un nouveau dossier</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -141,47 +88,47 @@ export default function MedecinDashboard() {
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
           Activité de {stats ? formatMonthFR(stats.month) : "ce mois"}
         </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Patients consultés */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center text-lg">👥</div>
-              <p className="text-xs font-medium text-gray-500 leading-tight">Patients<br />consultés</p>
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-11 h-11 rounded-lg bg-primary-50 flex items-center justify-center text-xl">👥</div>
+              <p className="text-sm font-medium text-gray-500 leading-tight">Patients<br />consultés</p>
             </div>
-            <p className="text-3xl font-bold text-primary-600 leading-none">
+            <p className="text-4xl font-bold text-primary-600 leading-none">
               {stats ? stats.patientsThisMonth : <span className="text-gray-200 animate-pulse">—</span>}
             </p>
           </div>
 
           {/* RDV en attente */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-yellow-50 flex items-center justify-center text-lg">⏳</div>
-              <p className="text-xs font-medium text-gray-500 leading-tight">RDV en<br />attente</p>
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-11 h-11 rounded-lg bg-yellow-50 flex items-center justify-center text-xl">⏳</div>
+              <p className="text-sm font-medium text-gray-500 leading-tight">RDV en<br />attente</p>
             </div>
-            <p className="text-3xl font-bold text-yellow-500 leading-none">
+            <p className="text-4xl font-bold text-yellow-500 leading-none">
               {stats ? stats.rdv.en_attente : <span className="text-gray-200 animate-pulse">—</span>}
             </p>
           </div>
 
           {/* RDV confirmés */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center text-lg">✅</div>
-              <p className="text-xs font-medium text-gray-500 leading-tight">RDV<br />confirmés</p>
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-11 h-11 rounded-lg bg-green-50 flex items-center justify-center text-xl">✅</div>
+              <p className="text-sm font-medium text-gray-500 leading-tight">RDV<br />confirmés</p>
             </div>
-            <p className="text-3xl font-bold text-green-500 leading-none">
+            <p className="text-4xl font-bold text-green-500 leading-none">
               {stats ? stats.rdv.confirme : <span className="text-gray-200 animate-pulse">—</span>}
             </p>
           </div>
 
           {/* RDV effectués */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-lg">🏁</div>
-              <p className="text-xs font-medium text-gray-500 leading-tight">RDV<br />effectués</p>
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-11 h-11 rounded-lg bg-blue-50 flex items-center justify-center text-xl">🏁</div>
+              <p className="text-sm font-medium text-gray-500 leading-tight">RDV<br />effectués</p>
             </div>
-            <p className="text-3xl font-bold text-blue-500 leading-none">
+            <p className="text-4xl font-bold text-blue-500 leading-none">
               {stats ? stats.rdv.effectue : <span className="text-gray-200 animate-pulse">—</span>}
             </p>
           </div>
@@ -259,71 +206,6 @@ export default function MedecinDashboard() {
         </div>
       )}
 
-      {/* Recherche */}
-      <div className="max-w-xl">
-        <div className="card">
-          <h2 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
-            <svg className="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            Recherche patient
-          </h2>
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Code ou nom du patient</label>
-              <input
-                type="text"
-                value={search}
-                onChange={e => { setSearch(e.target.value); setResults([]); setSearchError(""); }}
-                placeholder="Ex: TS202605001 ou TONDE"
-                className="input-field text-lg"
-                autoFocus
-              />
-            </div>
-            {searchError && <p className="text-red-600 text-sm">{searchError}</p>}
-            <button type="submit" disabled={searching} className="btn-primary w-full py-3">
-              {searching ? "Recherche..." : "Rechercher"}
-            </button>
-          </form>
-        </div>
-
-        {/* Résultats */}
-        {results.length > 0 && (
-          <div className="mt-4 card divide-y divide-gray-100">
-            <p className="text-sm text-gray-500 pb-3">{results.length} patient(s) trouvé(s)</p>
-            {results.map(p => (
-              <button
-                key={p.id}
-                onClick={() => router.push(`/medecin/patient/${p.code}`)}
-                className="w-full text-left py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-800">{p.prenom} {p.nom}</span>
-                    {p.decede === 1 && <span className="text-[10px] font-bold bg-red-600 text-white px-1.5 py-0.5 rounded uppercase">DCD</span>}
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="font-mono text-xs text-primary-700 bg-primary-50 px-1.5 py-0.5 rounded">{p.code}</span>
-                    {p.date_naissance && (
-                      <span className="text-xs text-gray-400">
-                        {formatAge(p.date_naissance)}
-                      </span>
-                    )}
-                    <span className="text-xs text-gray-400">{p.sexe === "M" ? "Masculin" : "Féminin"}</span>
-                    {p.telephone && <span className="text-xs text-gray-400">📱 {p.telephone}</span>}
-                  </div>
-                </div>
-                <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-6 p-4 bg-primary-50 rounded-xl border border-primary-100">
-          <p className="text-sm text-primary-700 font-medium mb-1">Accès au dossier</p>
-          <p className="text-xs text-primary-600">Entrez le code du patient (ex: TS202605001) pour un accès direct, ou saisissez son nom pour une recherche.</p>
-        </div>
-      </div>
     </div>
   );
 }
