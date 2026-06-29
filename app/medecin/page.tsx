@@ -12,6 +12,7 @@ interface DashboardStats {
     annule: number;
   };
   month: string;
+  nom: string;
 }
 
 interface PatientHospitalise {
@@ -110,8 +111,20 @@ export default function MedecinDashboard() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Espace Médecin</h1>
-          <p className="text-gray-500 text-sm mt-1">Consultez la liste des patients ou créez un nouveau dossier</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Espace Médecin</p>
+          {stats?.nom ? (
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                {stats.nom.replace("Dr. ", "").trim().split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800 leading-tight">{stats.nom}</h1>
+                <p className="text-xs text-primary-600 font-medium">Médecin — {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="h-10 w-56 bg-gray-100 rounded-lg animate-pulse" />
+          )}
         </div>
         <div className="flex items-center gap-3">
           <button

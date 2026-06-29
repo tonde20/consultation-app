@@ -43,5 +43,6 @@ export async function GET() {
     consultationsThisMonth: parseInt(consultCount?.count || '0'),
     rdv,
     month: currentMonth,
+    nom: session.nom,
   });
 }
