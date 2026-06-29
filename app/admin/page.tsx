@@ -1,4 +1,5 @@
 import { initDb, dbGet, dbAll } from "@/lib/db";
+import { getSession } from "@/lib/auth";
 import PatientsChart from "./components/PatientsChart";
 
 function StatCard({ title, value, subtitle, color }: { title: string; value: string | number; subtitle?: string; color: string }) {
@@ -18,6 +19,7 @@ function formatMonthLabel(yyyymm: string) {
 }
 
 export default async function AdminDashboard() {
+  const session = getSession();
   await initDb();
   const today = new Date().toISOString().split("T")[0];
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -81,8 +83,23 @@ export default async function AdminDashboard() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Tableau de bord</h1>
-        <p className="text-gray-500 text-sm mt-1">Vue d'ensemble de l'activité — {new Date().toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Tableau de bord</p>
+        {session?.nom ? (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">
+              {session.nom.replace(/^Dr\.?\s*/i, "").trim().split(/\s+/).map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800 leading-tight">{session.nom}</h1>
+              <p className="text-xs text-teal-600 font-medium">Administrateur — {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Tableau de bord</h1>
+            <p className="text-gray-500 text-sm mt-1">Vue d'ensemble de l'activité — {new Date().toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+          </div>
+        )}
       </div>
 
       {/* KPIs principaux */}

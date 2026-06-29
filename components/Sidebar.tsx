@@ -31,7 +31,7 @@ export default function Sidebar({ items, role, userName, etablissement }: Sideba
                          { bg: "bg-sky-600",      ring: "ring-sky-200",     text: "text-sky-700",     light: "bg-sky-50"     };
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-100 flex flex-col h-screen sticky top-0" style={{ boxShadow: "1px 0 8px 0 rgba(0,0,0,0.04)" }}>
+    <aside className="w-72 bg-white border-r border-gray-100 flex flex-col h-screen sticky top-0" style={{ boxShadow: "1px 0 8px 0 rgba(0,0,0,0.04)" }}>
       {/* Logo / Établissement */}
       <div className="px-5 py-5 border-b border-gray-100">
         <div className="flex items-center gap-3">
@@ -42,7 +42,7 @@ export default function Sidebar({ items, role, userName, etablissement }: Sideba
             </svg>
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-gray-800 text-sm leading-tight truncate">{etablissement}</p>
+            <p className="font-bold text-gray-800 text-sm leading-tight">{etablissement}</p>
             <p className="text-xs text-gray-400 mt-0.5">Gestion médicale</p>
           </div>
         </div>
@@ -78,7 +78,9 @@ export default function Sidebar({ items, role, userName, etablissement }: Sideba
       <div className="px-4 py-4 border-t border-gray-100">
         <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${roleAccent.light} mb-2`}>
           <div className={`w-8 h-8 ${roleAccent.bg} rounded-full flex items-center justify-center flex-shrink-0 shadow-sm`}>
-            <span className="text-white text-xs font-bold">{userName.charAt(0).toUpperCase()}</span>
+            <span className="text-white text-xs font-bold">
+              {userName.replace(/^Dr\.?\s*/i, "").trim().split(/\s+/).map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+            </span>
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-gray-700 truncate leading-tight">{userName}</p>
