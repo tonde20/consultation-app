@@ -16,10 +16,18 @@ export default function ParametresPage() {
   const [pwdMessage, setPwdMessage] = useState({ type: "", text: "" });
   const [savingPwd, setSavingPwd] = useState(false);
 
+  const [nomAdmin, setNomAdmin] = useState("");
+  const [savingProfil, setSavingProfil] = useState(false);
+  const [profilMessage, setProfilMessage] = useState({ type: "", text: "" });
+
   useEffect(() => {
     fetch("/api/settings").then(r => r.json()).then(d => {
       setSettings(prev => ({ ...prev, ...d }));
       setLoading(false);
+    });
+    // Charger le nom actuel depuis la session
+    fetch("/api/auth/me").then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.user?.nom) setNomAdmin(d.user.nom);
     });
   }, []);
 
@@ -39,6 +47,24 @@ export default function ParametresPage() {
     }
     setSaving(false);
     setTimeout(() => setMessage({ type: "", text: "" }), 3000);
+  };
+
+  const handleSaveProfil = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingProfil(true);
+    const res = await fetch("/api/admin/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nom: nomAdmin }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setProfilMessage({ type: "success", text: "Nom mis à jour. Rechargez la page pour voir le changement dans la sidebar." });
+    } else {
+      setProfilMessage({ type: "error", text: data.error || "Erreur lors de la mise à jour" });
+    }
+    setSavingProfil(false);
+    setTimeout(() => setProfilMessage({ type: "", text: "" }), 4000);
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -71,6 +97,36 @@ export default function ParametresPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Paramètres</h1>
         <p className="text-gray-500 text-sm mt-1">Configuration de l'établissement</p>
+      </div>
+
+      {/* Profil administrateur */}
+      <div className="mb-8">
+        <h2 className="text-lg font-bold text-gray-800 mb-1">Profil administrateur</h2>
+        <p className="text-gray-500 text-sm mb-5">Votre nom affiché dans l'application</p>
+
+        {profilMessage.text && (
+          <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${profilMessage.type === "success" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+            {profilMessage.text}
+          </div>
+        )}
+
+        <form onSubmit={handleSaveProfil} className="card flex items-end gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet *</label>
+            <input
+              type="text"
+              value={nomAdmin}
+              onChange={e => setNomAdmin(e.target.value)}
+              className="input-field"
+              placeholder="Ex : Dr. TONDE Salifou"
+              required
+            />
+            <p className="text-xs text-gray-400 mt-1">Affiché dans le tableau de bord et la barre latérale</p>
+          </div>
+          <button type="submit" disabled={savingProfil} className="btn-primary shrink-0">
+            {savingProfil ? "Enregistrement..." : "Mettre à jour"}
+          </button>
+        </form>
       </div>
 
       {message.text && (
