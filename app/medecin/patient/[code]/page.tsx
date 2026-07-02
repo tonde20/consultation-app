@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { genererOrdonnance, genererExamens, genererCertificat, genererCertificatVisite } from "@/lib/pdf";
 import { analyserConstantes, hypothesesDiagnostiques } from "@/lib/clinique";
+import { CATALOGUE_EXAMENS, examensParCategorie, formaterResultats, LIBELLES_CATEGORIES, type CategorieExamen } from "@/lib/examens";
 
 function formatAge(dateNaissance: string): string {
   const diffMs = Date.now() - new Date(dateNaissance).getTime();
@@ -54,9 +55,6 @@ export default function PatientDossierPage() {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [doctors, setDoctors] = useState<any[]>([]);
 
-  const BILANS_SANGUINS = ["Numération formule sanguine (NFS)", "Créatininémie", "Glycémie", "Transaminases (ASAT/ALAT)", "Sérologie Dengue", "Goutte épaisse / Densité parasitaire", "Sérologie VIH", "Ag HBs", "Ac VHC", "Ionogramme sanguin"];
-  const BILANS_IMAGERIE = ["Radiographie standard", "Échographie"];
-
   const [consultForm, setConsultForm] = useState({
     motif: "", examen_physique: "", diagnostic: "", notes: "", tension: "", temperature: "", pouls: "", poids: "", taille: "",
     type_prise_en_charge: "ambulatoire",
@@ -64,17 +62,14 @@ export default function PatientDossierPage() {
     prescriptions: [{ medicament: "", posologie: "", duree: "" }],
   });
 
+  // Examens : catégories ouvertes, examens cochés (par nom du catalogue),
+  // indications, résultats structurés (nom -> { champCle: valeur }) et examens libres.
   const [examensCategories, setExamensCategories] = useState<Set<string>>(new Set());
   const [examensCoches, setExamensCoches] = useState<Set<string>>(new Set());
   const [examensIndications, setExamensIndications] = useState<Record<string, string>>({});
-  const [autresBilanText, setAutresBilanText] = useState("");
-  const [autresBilanIndication, setAutresBilanIndication] = useState("");
-  const [autresImagerieText, setAutresImagerieText] = useState("");
-  const [autresImagerieIndication, setAutresImagerieIndication] = useState("");
-  const [autresText, setAutresText] = useState("");
-  const [autresIndication, setAutresIndication] = useState("");
-  const [resultats, setResultats] = useState<Record<string, string>>({});
-  const [showResultats, setShowResultats] = useState(false);
+  const [examensResultats, setExamensResultats] = useState<Record<string, Record<string, string>>>({});
+  const [examensCustom, setExamensCustom] = useState<{ categorie: CategorieExamen; nom: string; resultat: string }[]>([]);
+  const [customInput, setCustomInput] = useState<Record<string, string>>({});
 
   const [sortiModal, setSortiModal] = useState<Consultation | null>(null);
   const [dateSortie, setDateSortie] = useState("");
@@ -201,24 +196,22 @@ export default function PatientDossierPage() {
 
   const buildExamensPayload = () => {
     const list: { categorie: string; type_examen: string; description: string; resultat: string }[] = [];
-    if (examensCategories.has("bilan_sanguin")) {
-      BILANS_SANGUINS.forEach(ex => {
-        if (examensCoches.has(`bilan_sanguin:${ex}`))
-          list.push({ categorie: "bilan_sanguin", type_examen: ex, description: examensIndications[`bilan_sanguin:${ex}`] || "", resultat: resultats[`bilan_sanguin:${ex}`] || "" });
-      });
-      if (autresBilanText.trim())
-        list.push({ categorie: "bilan_sanguin", type_examen: autresBilanText.trim(), description: autresBilanIndication.trim(), resultat: resultats[`bilan_sanguin:autres`] || "" });
-    }
-    if (examensCategories.has("imagerie")) {
-      BILANS_IMAGERIE.forEach(ex => {
-        if (examensCoches.has(`imagerie:${ex}`))
-          list.push({ categorie: "imagerie", type_examen: ex, description: examensIndications[`imagerie:${ex}`] || "", resultat: resultats[`imagerie:${ex}`] || "" });
-      });
-      if (autresImagerieText.trim())
-        list.push({ categorie: "imagerie", type_examen: autresImagerieText.trim(), description: autresImagerieIndication.trim(), resultat: resultats[`imagerie:autres`] || "" });
-    }
-    if (examensCategories.has("autres") && autresText.trim())
-      list.push({ categorie: "autres", type_examen: autresText.trim(), description: autresIndication.trim(), resultat: resultats[`autres:autres`] || "" });
+    // Examens du catalogue cochés (par nom), avec résultats structurés
+    CATALOGUE_EXAMENS.forEach(def => {
+      if (examensCoches.has(def.nom)) {
+        list.push({
+          categorie: def.categorie,
+          type_examen: def.nom,
+          description: examensIndications[def.nom] || "",
+          resultat: formaterResultats(def.nom, examensResultats[def.nom] || {}),
+        });
+      }
+    });
+    // Examens libres ajoutés par le médecin
+    examensCustom.forEach(ex => {
+      if (ex.nom.trim())
+        list.push({ categorie: ex.categorie, type_examen: ex.nom.trim(), description: "", resultat: ex.resultat.trim() });
+    });
     return list;
   };
 
@@ -229,10 +222,9 @@ export default function PatientDossierPage() {
     setExamensCategories(new Set());
     setExamensCoches(new Set());
     setExamensIndications({});
-    setAutresBilanText(""); setAutresBilanIndication("");
-    setAutresImagerieText(""); setAutresImagerieIndication("");
-    setAutresText(""); setAutresIndication("");
-    setResultats({}); setShowResultats(false);
+    setExamensResultats({});
+    setExamensCustom([]);
+    setCustomInput({});
   };
 
   const handleNewConsultation = async (e: React.FormEvent) => {
@@ -1348,144 +1340,126 @@ export default function PatientDossierPage() {
               </div>
             </div>
 
-            {/* Étape 2 : examens par catégorie */}
+            {/* Étape 2 : examens + résultats structurés par catégorie */}
             {examensCategories.size > 0 && (
               <div className="mb-4 space-y-4">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Étape 2 — Sélection des examens</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Étape 2 — Sélection des examens et saisie des résultats</p>
 
-                {examensCategories.has("bilan_sanguin") && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                    <p className="text-xs font-bold text-red-700 uppercase tracking-wide mb-3">🩸 Bilans sanguins</p>
-                    <div className="space-y-2 mb-3">
-                      {BILANS_SANGUINS.map(ex => {
-                        const key = `bilan_sanguin:${ex}`;
-                        const checked = examensCoches.has(key);
-                        return (
-                          <div key={ex}>
-                            <label className="flex items-center gap-2 text-sm cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={e => {
-                                  const s = new Set(examensCoches);
-                                  e.target.checked ? s.add(key) : s.delete(key);
-                                  setExamensCoches(s);
-                                }}
-                                className="rounded text-red-600 flex-shrink-0"
-                              />
-                              <span className={`${checked ? "font-medium text-gray-800" : "text-gray-600"}`}>{ex}</span>
-                            </label>
-                            {checked && (
-                              <div className="mt-1 ml-5">
-                                <input
-                                  type="text"
-                                  value={examensIndications[key] || ""}
-                                  onChange={e => setExamensIndications(prev => ({ ...prev, [key]: e.target.value }))}
-                                  className="input-field text-xs py-1"
-                                  placeholder="Indication / précision (optionnel)..."
-                                />
+                {(["bilan_sanguin", "imagerie", "autres"] as CategorieExamen[])
+                  .filter(cat => examensCategories.has(cat))
+                  .map(cat => {
+                    const st = cat === "bilan_sanguin"
+                      ? { box: "bg-red-50 border-red-200", txt: "text-red-700", brd: "border-red-200" }
+                      : cat === "imagerie"
+                      ? { box: "bg-blue-50 border-blue-200", txt: "text-blue-700", brd: "border-blue-200" }
+                      : { box: "bg-gray-50 border-gray-200", txt: "text-gray-700", brd: "border-gray-200" };
+                    return (
+                      <div key={cat} className={`border rounded-xl p-4 ${st.box}`}>
+                        <p className={`text-xs font-bold uppercase tracking-wide mb-3 ${st.txt}`}>{LIBELLES_CATEGORIES[cat]}</p>
+                        <div className="space-y-1.5">
+                          {examensParCategorie(cat).map(def => {
+                            const checked = examensCoches.has(def.nom);
+                            return (
+                              <div key={def.nom} className={checked ? "bg-white/70 rounded-lg p-2" : ""}>
+                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={e => {
+                                      const s = new Set(examensCoches);
+                                      e.target.checked ? s.add(def.nom) : s.delete(def.nom);
+                                      setExamensCoches(s);
+                                    }}
+                                    className="rounded flex-shrink-0"
+                                  />
+                                  <span className={checked ? "font-medium text-gray-800" : "text-gray-600"}>{def.nom}</span>
+                                </label>
+                                {checked && (
+                                  <div className="ml-5 mt-2 space-y-2">
+                                    <input
+                                      type="text"
+                                      value={examensIndications[def.nom] || ""}
+                                      onChange={e => setExamensIndications(prev => ({ ...prev, [def.nom]: e.target.value }))}
+                                      className="input-field text-xs py-1"
+                                      placeholder="Indication / précision (optionnel)..."
+                                    />
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                      {def.champs.map(champ => {
+                                        const val = examensResultats[def.nom]?.[champ.cle] || "";
+                                        const setVal = (v: string) =>
+                                          setExamensResultats(prev => ({ ...prev, [def.nom]: { ...(prev[def.nom] || {}), [champ.cle]: v } }));
+                                        return (
+                                          <div key={champ.cle}>
+                                            <label className="block text-[11px] text-gray-500 mb-0.5">
+                                              {champ.label}{champ.unite ? ` (${champ.unite})` : ""}
+                                            </label>
+                                            {champ.type === "select" ? (
+                                              <select value={val} onChange={e => setVal(e.target.value)} className="input-field text-xs py-1">
+                                                {(champ.options || []).map(o => (
+                                                  <option key={o} value={o}>{o || "—"}</option>
+                                                ))}
+                                              </select>
+                                            ) : (
+                                              <input
+                                                type="text"
+                                                value={val}
+                                                onChange={e => setVal(e.target.value)}
+                                                className="input-field text-xs py-1"
+                                                placeholder={champ.normale ? `Réf. ${champ.normale}` : "Résultat"}
+                                              />
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="border-t border-red-200 pt-3">
-                      <label className="block text-xs font-medium text-red-700 mb-1">Autres bilans sanguins (préciser) :</label>
-                      <input type="text" value={autresBilanText} onChange={e => setAutresBilanText(e.target.value)} className="input-field text-sm" placeholder="Ex : Frottis sanguin, Lipidogramme..." />
-                      {autresBilanText.trim() && (
-                        <input type="text" value={autresBilanIndication} onChange={e => setAutresBilanIndication(e.target.value)} className="input-field text-xs mt-1" placeholder="Indication / précision (optionnel)..." />
-                      )}
-                    </div>
-                  </div>
-                )}
+                            );
+                          })}
+                        </div>
 
-                {examensCategories.has("imagerie") && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-3">🔬 Imagérie</p>
-                    <div className="space-y-2 mb-3">
-                      {BILANS_IMAGERIE.map(ex => {
-                        const key = `imagerie:${ex}`;
-                        const checked = examensCoches.has(key);
-                        return (
-                          <div key={ex}>
-                            <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        {/* Examen libre pour cette catégorie */}
+                        <div className={`border-t pt-3 mt-3 ${st.brd}`}>
+                          <label className={`block text-xs font-medium mb-1 ${st.txt}`}>Autre examen (préciser) :</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={customInput[cat] || ""}
+                              onChange={e => setCustomInput(p => ({ ...p, [cat]: e.target.value }))}
+                              className="input-field text-sm flex-1"
+                              placeholder="Nom de l'examen..."
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nom = (customInput[cat] || "").trim();
+                                if (!nom) return;
+                                setExamensCustom(prev => [...prev, { categorie: cat, nom, resultat: "" }]);
+                                setCustomInput(p => ({ ...p, [cat]: "" }));
+                              }}
+                              className="btn-secondary text-xs px-3 whitespace-nowrap"
+                            >
+                              + Ajouter
+                            </button>
+                          </div>
+                          {examensCustom.map((x, realIdx) => x.categorie === cat && (
+                            <div key={realIdx} className="mt-2 flex items-center gap-2">
+                              <span className="text-sm text-gray-700 flex-shrink-0 max-w-[40%] truncate">{x.nom}</span>
                               <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={e => {
-                                  const s = new Set(examensCoches);
-                                  e.target.checked ? s.add(key) : s.delete(key);
-                                  setExamensCoches(s);
-                                }}
-                                className="rounded text-blue-600 flex-shrink-0"
+                                type="text"
+                                value={x.resultat}
+                                onChange={e => { const a = [...examensCustom]; a[realIdx] = { ...a[realIdx], resultat: e.target.value }; setExamensCustom(a); }}
+                                className="input-field text-xs flex-1"
+                                placeholder="Résultat (optionnel)..."
                               />
-                              <span className={`${checked ? "font-medium text-gray-800" : "text-gray-600"}`}>{ex}</span>
-                            </label>
-                            {checked && (
-                              <div className="mt-1 ml-5">
-                                <input
-                                  type="text"
-                                  value={examensIndications[key] || ""}
-                                  onChange={e => setExamensIndications(prev => ({ ...prev, [key]: e.target.value }))}
-                                  className="input-field text-xs py-1"
-                                  placeholder="Indication / précision (optionnel)..."
-                                />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="border-t border-blue-200 pt-3">
-                      <label className="block text-xs font-medium text-blue-700 mb-1">Autre imagerie (préciser) :</label>
-                      <input type="text" value={autresImagerieText} onChange={e => setAutresImagerieText(e.target.value)} className="input-field text-sm" placeholder="Ex : Scanner, IRM..." />
-                      {autresImagerieText.trim() && (
-                        <input type="text" value={autresImagerieIndication} onChange={e => setAutresImagerieIndication(e.target.value)} className="input-field text-xs mt-1" placeholder="Indication / précision (optionnel)..." />
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {examensCategories.has("autres") && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                    <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">📋 Autres examens</p>
-                    <input type="text" value={autresText} onChange={e => setAutresText(e.target.value)} className="input-field text-sm" placeholder="Précisez l'examen demandé..." />
-                    {autresText.trim() && (
-                      <input type="text" value={autresIndication} onChange={e => setAutresIndication(e.target.value)} className="input-field text-xs mt-2" placeholder="Indication / précision (optionnel)..." />
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Étape 3 : résultats (optionnel) */}
-            {buildExamensPayload().length > 0 && (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShowResultats(v => !v)}
-                  className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1 mb-3"
-                >
-                  {showResultats ? "▲" : "▼"} Étape 3 — Renseigner les résultats (optionnel)
-                </button>
-                {showResultats && (
-                  <div className="space-y-2 bg-teal-50 border border-teal-200 rounded-xl p-4">
-                    <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide mb-2">Résultats disponibles dès maintenant</p>
-                    {buildExamensPayload().map(ex => (
-                      <div key={`${ex.categorie}:${ex.type_examen}`} className="flex items-center gap-3">
-                        <span className="text-sm text-gray-700 w-48 flex-shrink-0">{ex.type_examen}</span>
-                        <input
-                          type="text"
-                          value={resultats[`${ex.categorie}:${ex.type_examen === (ex.categorie === 'bilan_sanguin' ? autresBilanText.trim() : ex.categorie === 'imagerie' ? autresImagerieText.trim() : autresText.trim()) ? 'autres' : ex.type_examen}`] || ""}
-                          onChange={e => setResultats(r => ({ ...r, [`${ex.categorie}:${ex.type_examen}`]: e.target.value }))}
-                          className="input-field text-sm flex-1"
-                          placeholder="Résultat si disponible..."
-                        />
+                              <button type="button" onClick={() => setExamensCustom(prev => prev.filter((_, j) => j !== realIdx))} className="text-red-400 hover:text-red-600 text-lg leading-none">×</button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    );
+                  })}
               </div>
             )}
           </div>

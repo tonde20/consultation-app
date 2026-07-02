@@ -283,75 +283,140 @@ function extraireValeur(txt: string, labels: string[]): number | null {
   return null;
 }
 
-function estPositif(txt: string, labels: string[]): boolean {
-  for (const lab of labels) {
-    const re = new RegExp(lab + "[^a-z0-9]{0,20}(positif|positive|présent|present|\\+)");
-    if (re.test(txt)) return true;
-  }
-  return false;
+// Un résultat texte contient-il une positivité ? (sélecteurs Positif/Négatif)
+function resultatPositif(resultat: string): boolean {
+  const r = norm(resultat);
+  if (!r) return false;
+  if (/\bnegati/.test(r) && !/positi/.test(r)) return false;
+  return /positi|reactif|present|\+/.test(r);
 }
 
 // Analyse les résultats paracliniques et renforce / ajoute des hypothèses
 function analyserExamens(examens: { type_examen?: string; resultat?: string }[] | undefined) {
   const apports: { diagnostic: string; raison: string; poids: number }[] = [];
   if (!examens || examens.length === 0) return apports;
+  const ajoute = (diagnostic: string, raison: string, poids: number) => apports.push({ diagnostic, raison, poids });
 
   const txt = norm(examens.map((e) => `${e.type_examen || ""} ${e.resultat || ""}`).join(" ; "));
   if (!txt.trim()) return apports;
 
-  // Leucocytes (GB) — /mm3 ou G/L
-  const gb = extraireValeur(txt, ["leucocyte", "globules blancs", "g\\.?b", "leuco"]);
+  // ---- Marqueurs numériques (le nombre suit directement son libellé) ----
+
+  // NFS — Leucocytes /mm3 (ou G/L)
+  const gb = extraireValeur(txt, ["leucocyte", "globules blancs", "\\bgb\\b", "leuco"]);
   if (gb != null) {
-    const val = gb < 100 ? gb * 1000 : gb; // G/L -> /mm3
+    const val = gb < 100 ? gb * 1000 : gb;
     if (val > 10000) {
-      apports.push({ diagnostic: "Infection bactérienne", raison: `hyperleucocytose (${gb})`, poids: 2 });
-      apports.push({ diagnostic: "Pneumopathie / Infection respiratoire basse", raison: "hyperleucocytose", poids: 1 });
-      apports.push({ diagnostic: "Infection urinaire", raison: "hyperleucocytose", poids: 1 });
+      ajoute("Infection bactérienne", `hyperleucocytose (${gb})`, 2);
+      ajoute("Pneumopathie / Infection respiratoire basse", "hyperleucocytose", 1);
+      ajoute("Infection urinaire", "hyperleucocytose", 1);
     } else if (val < 4000) {
-      apports.push({ diagnostic: "Fièvre typhoïde", raison: `leucopénie (${gb})`, poids: 1 });
-      apports.push({ diagnostic: "Dengue", raison: "leucopénie", poids: 1 });
-      apports.push({ diagnostic: "Paludisme", raison: "leucopénie", poids: 1 });
+      ajoute("Fièvre typhoïde", `leucopénie (${gb})`, 1);
+      ajoute("Dengue", "leucopénie", 1);
+      ajoute("Paludisme", "leucopénie", 1);
     }
   }
-
-  // Hémoglobine (g/dL)
-  const hb = extraireValeur(txt, ["hemoglobine", "\\bhb\\b", "hgb"]);
-  if (hb != null && hb > 0 && hb < 11) {
-    apports.push({ diagnostic: "Anémie", raison: `Hb basse (${hb} g/dL)`, poids: hb < 7 ? 3 : 2 });
+  // Neutrophiles (%) élevés → orientation bactérienne
+  const neutro = extraireValeur(txt, ["neutrophile", "\\bpnn\\b"]);
+  if (neutro != null && neutro > 75 && neutro <= 100) {
+    ajoute("Infection bactérienne", `polynucléose neutrophile (${neutro}%)`, 1);
   }
 
-  // Plaquettes — /mm3 ou G/L
+  // Hémoglobine (g/dL) → anémie
+  const hb = extraireValeur(txt, ["hemoglobine", "\\bhb\\b", "hgb"]);
+  if (hb != null && hb > 0 && hb < 11) {
+    ajoute("Anémie", `Hb basse (${hb} g/dL)`, hb < 7 ? 3 : 2);
+  }
+
+  // Plaquettes → thrombopénie
   const plq = extraireValeur(txt, ["plaquette", "\\bplq\\b", "thrombocyte"]);
   if (plq != null) {
     const val = plq < 1000 ? plq * 1000 : plq;
     if (val < 150000) {
-      apports.push({ diagnostic: "Dengue", raison: `thrombopénie (${plq})`, poids: 2 });
-      apports.push({ diagnostic: "Paludisme", raison: "thrombopénie", poids: 1 });
+      ajoute("Dengue", `thrombopénie (${plq})`, 2);
+      ajoute("Paludisme", "thrombopénie", 1);
     }
   }
 
-  // Glycémie — g/L ou mmol/L
+  // Glycémie (g/L ou mmol/L) & HbA1c → diabète
   const gly = extraireValeur(txt, ["glycemie", "glucose"]);
-  if (gly != null) {
-    const hyper = (gly < 30 && gly > 1.26) || gly >= 7; // g/L (>1,26) ou mmol/L (>=7)
-    if (hyper) apports.push({ diagnostic: "Diabète déséquilibré", raison: `hyperglycémie (${gly})`, poids: 2 });
+  if (gly != null && ((gly < 30 && gly > 1.26) || gly >= 7)) {
+    ajoute("Diabète déséquilibré", `hyperglycémie (${gly})`, 2);
+  }
+  const hba1c = extraireValeur(txt, ["hba1c", "hemoglobine glyquee"]);
+  if (hba1c != null && hba1c > 6.5 && hba1c < 20) {
+    ajoute("Diabète déséquilibré", `HbA1c élevée (${hba1c}%)`, 2);
   }
 
-  // Goutte épaisse / densité parasitaire
-  if (estPositif(txt, ["goutte epaisse", "densite parasitaire", "\\bge\\b", "plasmodium", "trophozoite"])) {
-    apports.push({ diagnostic: "Paludisme", raison: "goutte épaisse positive", poids: 4 });
+  // CRP / VS → syndrome inflammatoire (oriente bactérien)
+  const crp = extraireValeur(txt, ["crp", "proteine c-reactive"]);
+  if (crp != null && crp > 6) {
+    ajoute("Infection bactérienne", `CRP élevée (${crp} mg/L)`, crp > 50 ? 2 : 1);
   }
-  // Widal / typhoïde
-  if (estPositif(txt, ["widal", "typhoid", "salmonella"])) {
-    apports.push({ diagnostic: "Fièvre typhoïde", raison: "sérologie de Widal positive", poids: 3 });
+  const vs = extraireValeur(txt, ["vitesse de sedimentation", "\\bvs\\b"]);
+  if (vs != null && vs > 20) ajoute("Infection bactérienne", `VS accélérée (${vs} mm)`, 1);
+
+  // Créatinine (mg/L ou µmol/L) & urée → insuffisance rénale
+  const crea = extraireValeur(txt, ["creatinine"]);
+  if (crea != null) {
+    const anormal = crea > 30 ? crea > 115 : crea > 13; // µmol/L sinon mg/L
+    if (anormal) ajoute("Insuffisance rénale", `créatinine élevée (${crea})`, 2);
   }
-  // Dengue (NS1 / sérologie)
-  if (estPositif(txt, ["dengue", "\\bns1\\b"])) {
-    apports.push({ diagnostic: "Dengue", raison: "sérologie Dengue positive", poids: 3 });
+  const uree = extraireValeur(txt, ["uree"]);
+  if (uree != null && ((uree < 5 && uree > 0.5) || uree >= 8)) {
+    ajoute("Insuffisance rénale", `urée élevée (${uree})`, 1);
   }
-  // Infection urinaire — ECBU / bandelette
-  if (estPositif(txt, ["nitrite", "leucocyturie", "ecbu", "germe"])) {
-    apports.push({ diagnostic: "Infection urinaire", raison: "ECBU/bandelette évocateur", poids: 2 });
+
+  // Transaminases / bilirubine → atteinte hépatique
+  const asat = extraireValeur(txt, ["asat", "\\btgo\\b"]);
+  const alat = extraireValeur(txt, ["alat", "\\btgp\\b"]);
+  const tMax = Math.max(asat ?? 0, alat ?? 0);
+  if (tMax > 40) ajoute("Cytolyse hépatique / Hépatite", `transaminases élevées (${tMax} UI/L)`, tMax > 200 ? 3 : 2);
+  const bili = extraireValeur(txt, ["bilirubine totale", "bilirubine"]);
+  if (bili != null && bili > 12) ajoute("Cytolyse hépatique / Hépatite", `hyperbilirubinémie (${bili})`, 1);
+
+  // Ionogramme — potassium
+  const k = extraireValeur(txt, ["potassium", "\\bk\\b"]);
+  if (k != null && k > 0 && k < 20 && (k < 3.5 || k > 5)) {
+    ajoute("Trouble hydro-électrolytique", `kaliémie anormale (${k} mmol/L)`, 2);
+  }
+
+  // Bilan lipidique / uricémie
+  const chol = extraireValeur(txt, ["cholesterol total", "cholesterol"]);
+  const tg = extraireValeur(txt, ["triglyceride"]);
+  if ((chol != null && chol > 2) || (tg != null && tg > 1.5)) {
+    ajoute("Dyslipidémie", "bilan lipidique perturbé", 2);
+  }
+  const urate = extraireValeur(txt, ["acide urique", "uricemie"]);
+  if (urate != null && urate > 70) ajoute("Hyperuricémie (goutte)", `acide urique élevé (${urate})`, 2);
+
+  // LCR — méningite
+  const gbLcr = extraireValeur(txt, ["\\bgb\\b.{0,40}lcr", "lcr.{0,40}gb"]);
+  if ((examens.some((e) => /lcr|ponction lombaire/i.test(e.type_examen || "")) && (gbLcr != null && gbLcr > 10))) {
+    ajoute("Méningite", "cellularité élevée dans le LCR", 3);
+  }
+
+  // ---- Sérologies & tests qualitatifs (positif / négatif, par examen) ----
+  for (const e of examens) {
+    const nom = norm(e.type_examen || "");
+    const pos = resultatPositif(e.resultat || "");
+    const dp = extraireValeur(norm(e.resultat || ""), ["densite parasitaire", "\\bdp\\b"]);
+    if ((/goutte epaisse|tdr|paludisme|plasmodium/.test(nom) && pos) || (dp != null && dp > 0)) {
+      ajoute("Paludisme", "test parasitologique positif", 4);
+    }
+    if (/widal|typhoid|salmonella/.test(nom) && pos) ajoute("Fièvre typhoïde", "sérologie de Widal positive", 3);
+    if (/dengue|ns1/.test(nom) && pos) ajoute("Dengue", "sérologie Dengue positive", 3);
+    if (/vih/.test(nom) && pos) ajoute("Infection à VIH", "sérologie VIH positive", 3);
+    if (/hbs|hepatite b/.test(nom) && pos) ajoute("Hépatite B", "Ag HBs positif", 3);
+    if (/vhc|hepatite c/.test(nom) && pos) ajoute("Hépatite C", "Ac anti-VHC positif", 3);
+    if (/hcg|grossesse/.test(nom) && pos) ajoute("Grossesse", "test de grossesse positif", 3);
+    if (/ecbu|bandelette/.test(nom)) {
+      const r = norm(e.resultat || "");
+      if (pos || /nitrite|leucocyt/.test(r)) {
+        if (/positi/.test(r) || /nitrite.{0,15}positi|leuco.{0,15}positi/.test(r))
+          ajoute("Infection urinaire", "ECBU/bandelette évocateur", 2);
+      }
+    }
   }
 
   return apports;
@@ -415,7 +480,7 @@ export function hypothesesDiagnostiques(ctx: CliniqueContext): HypotheseDiagnost
   // 2) Apports des examens paracliniques (n'ajoute un diagnostic isolé que s'il
   //    est déjà suspecté cliniquement, sauf preuve forte poids >= 3)
   for (const a of apportsExamens) {
-    if (acc.has(a.diagnostic) || a.poids >= 3) {
+    if (acc.has(a.diagnostic) || a.poids >= 2) {
       ajouter(a.diagnostic, a.poids, a.raison);
     }
   }
