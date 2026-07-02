@@ -1134,8 +1134,8 @@ export default function PatientDossierPage() {
                       <p className="text-sm font-medium text-gray-800">{new Date(rv.date_heure).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
                       <p className="text-xs text-gray-500 mt-0.5">Dr. {rv.doctor_prenom} {rv.doctor_nom} — {rv.motif || "Sans motif précisé"}</p>
                     </div>
-                    <span className={rv.statut === "confirme" ? "badge-green" : rv.statut === "annule" ? "badge-red" : "badge-yellow"}>
-                      {rv.statut === "confirme" ? "Confirmé" : rv.statut === "annule" ? "Annulé" : "En attente"}
+                    <span className={rv.statut === "confirme" ? "badge-green" : rv.statut === "annule" ? "badge-red" : rv.statut === "effectue" ? "badge-blue" : "badge-yellow"}>
+                      {rv.statut === "confirme" ? "Confirmé" : rv.statut === "annule" ? "Annulé" : rv.statut === "effectue" ? "Effectué" : "En attente"}
                     </span>
                   </div>
                 </div>
