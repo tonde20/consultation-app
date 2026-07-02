@@ -602,6 +602,7 @@ export default function PatientDossierPage() {
     pouls: consultForm.pouls,
     imc: imcEnCours ? parseFloat(imcEnCours) : null,
     antecedents: antecedentsTxt,
+    examens: buildExamensPayload(),
   });
 
   const tabs = [

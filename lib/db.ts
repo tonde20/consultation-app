@@ -19,7 +19,22 @@ export async function dbRun(query: string, params: any[] = []) {
   return await sql.query(query, params);
 }
 
-export async function initDb() {
+// Mémorise l'initialisation : le schéma n'est créé/migré qu'une seule fois par
+// process, au lieu d'exécuter tous les CREATE TABLE / ALTER à chaque requête
+// (source majeure de lenteur contre une base distante).
+let initPromise: Promise<void> | null = null;
+
+export function initDb(): Promise<void> {
+  if (!initPromise) {
+    initPromise = doInitDb().catch((err) => {
+      initPromise = null; // permet une nouvelle tentative en cas d'échec
+      throw err;
+    });
+  }
+  return initPromise;
+}
+
+async function doInitDb() {
   await sql`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,

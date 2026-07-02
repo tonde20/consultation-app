@@ -100,6 +100,8 @@ export interface CliniqueContext {
   pouls?: string;
   imc?: number | null;
   antecedents?: string;
+  // Résultats des examens paracliniques (NFS, glycémie, sérologies, GE...)
+  examens?: { type_examen?: string; resultat?: string }[];
 }
 
 export interface HypotheseDiagnostic {
@@ -270,6 +272,91 @@ const REGLES: Regle[] = [
   },
 ];
 
+// Extrait une valeur numérique associée à un libellé dans un texte d'examen
+// (ex. « leucocytes 15000 » → 15000, « hb: 8,5 » → 8.5)
+function extraireValeur(txt: string, labels: string[]): number | null {
+  for (const lab of labels) {
+    const re = new RegExp(lab + "[^0-9]{0,15}([0-9]+(?:[.,][0-9]+)?)");
+    const m = txt.match(re);
+    if (m) return parseFloat(m[1].replace(",", "."));
+  }
+  return null;
+}
+
+function estPositif(txt: string, labels: string[]): boolean {
+  for (const lab of labels) {
+    const re = new RegExp(lab + "[^a-z0-9]{0,20}(positif|positive|présent|present|\\+)");
+    if (re.test(txt)) return true;
+  }
+  return false;
+}
+
+// Analyse les résultats paracliniques et renforce / ajoute des hypothèses
+function analyserExamens(examens: { type_examen?: string; resultat?: string }[] | undefined) {
+  const apports: { diagnostic: string; raison: string; poids: number }[] = [];
+  if (!examens || examens.length === 0) return apports;
+
+  const txt = norm(examens.map((e) => `${e.type_examen || ""} ${e.resultat || ""}`).join(" ; "));
+  if (!txt.trim()) return apports;
+
+  // Leucocytes (GB) — /mm3 ou G/L
+  const gb = extraireValeur(txt, ["leucocyte", "globules blancs", "g\\.?b", "leuco"]);
+  if (gb != null) {
+    const val = gb < 100 ? gb * 1000 : gb; // G/L -> /mm3
+    if (val > 10000) {
+      apports.push({ diagnostic: "Infection bactérienne", raison: `hyperleucocytose (${gb})`, poids: 2 });
+      apports.push({ diagnostic: "Pneumopathie / Infection respiratoire basse", raison: "hyperleucocytose", poids: 1 });
+      apports.push({ diagnostic: "Infection urinaire", raison: "hyperleucocytose", poids: 1 });
+    } else if (val < 4000) {
+      apports.push({ diagnostic: "Fièvre typhoïde", raison: `leucopénie (${gb})`, poids: 1 });
+      apports.push({ diagnostic: "Dengue", raison: "leucopénie", poids: 1 });
+      apports.push({ diagnostic: "Paludisme", raison: "leucopénie", poids: 1 });
+    }
+  }
+
+  // Hémoglobine (g/dL)
+  const hb = extraireValeur(txt, ["hemoglobine", "\\bhb\\b", "hgb"]);
+  if (hb != null && hb > 0 && hb < 11) {
+    apports.push({ diagnostic: "Anémie", raison: `Hb basse (${hb} g/dL)`, poids: hb < 7 ? 3 : 2 });
+  }
+
+  // Plaquettes — /mm3 ou G/L
+  const plq = extraireValeur(txt, ["plaquette", "\\bplq\\b", "thrombocyte"]);
+  if (plq != null) {
+    const val = plq < 1000 ? plq * 1000 : plq;
+    if (val < 150000) {
+      apports.push({ diagnostic: "Dengue", raison: `thrombopénie (${plq})`, poids: 2 });
+      apports.push({ diagnostic: "Paludisme", raison: "thrombopénie", poids: 1 });
+    }
+  }
+
+  // Glycémie — g/L ou mmol/L
+  const gly = extraireValeur(txt, ["glycemie", "glucose"]);
+  if (gly != null) {
+    const hyper = (gly < 30 && gly > 1.26) || gly >= 7; // g/L (>1,26) ou mmol/L (>=7)
+    if (hyper) apports.push({ diagnostic: "Diabète déséquilibré", raison: `hyperglycémie (${gly})`, poids: 2 });
+  }
+
+  // Goutte épaisse / densité parasitaire
+  if (estPositif(txt, ["goutte epaisse", "densite parasitaire", "\\bge\\b", "plasmodium", "trophozoite"])) {
+    apports.push({ diagnostic: "Paludisme", raison: "goutte épaisse positive", poids: 4 });
+  }
+  // Widal / typhoïde
+  if (estPositif(txt, ["widal", "typhoid", "salmonella"])) {
+    apports.push({ diagnostic: "Fièvre typhoïde", raison: "sérologie de Widal positive", poids: 3 });
+  }
+  // Dengue (NS1 / sérologie)
+  if (estPositif(txt, ["dengue", "\\bns1\\b"])) {
+    apports.push({ diagnostic: "Dengue", raison: "sérologie Dengue positive", poids: 3 });
+  }
+  // Infection urinaire — ECBU / bandelette
+  if (estPositif(txt, ["nitrite", "leucocyturie", "ecbu", "germe"])) {
+    apports.push({ diagnostic: "Infection urinaire", raison: "ECBU/bandelette évocateur", poids: 2 });
+  }
+
+  return apports;
+}
+
 export function hypothesesDiagnostiques(ctx: CliniqueContext): HypotheseDiagnostic[] {
   const nctx: NormCtx = {
     texte: norm(`${ctx.motif || ""} ${ctx.examen || ""}`),
@@ -282,10 +369,27 @@ export function hypothesesDiagnostiques(ctx: CliniqueContext): HypotheseDiagnost
     imc: ctx.imc ?? null,
   };
 
-  if (!nctx.texte.trim() && !nctx.atcd.trim() && !nctx.ta && nctx.temp == null) return [];
+  const apportsExamens = analyserExamens(ctx.examens);
 
-  const resultats: HypotheseDiagnostic[] = [];
+  if (
+    !nctx.texte.trim() &&
+    !nctx.atcd.trim() &&
+    !nctx.ta &&
+    nctx.temp == null &&
+    apportsExamens.length === 0
+  )
+    return [];
 
+  // Accumulateur diagnostic -> { score, raisons }
+  const acc = new Map<string, { score: number; raisons: string[] }>();
+  const ajouter = (diagnostic: string, score: number, raison: string) => {
+    const cur = acc.get(diagnostic) || { score: 0, raisons: [] };
+    cur.score += score;
+    if (raison && !cur.raisons.includes(raison)) cur.raisons.push(raison);
+    acc.set(diagnostic, cur);
+  };
+
+  // 1) Règles cliniques (motif + examen + constantes)
   for (const regle of REGLES) {
     const raisons: string[] = [];
     let groupes = 0;
@@ -301,9 +405,23 @@ export function hypothesesDiagnostiques(ctx: CliniqueContext): HypotheseDiagnost
     const seuil = regle.minGroupes ?? 1;
     const propose = groupes >= Math.max(seuil, 1) || (seuil === 0 && bonus) || (groupes >= 1 && bonus);
     if (propose && raisons.length > 0) {
-      resultats.push({ diagnostic: regle.diagnostic, score: groupes + (bonus ? 1 : 0), raisons });
+      const cur = acc.get(regle.diagnostic) || { score: 0, raisons: [] };
+      cur.score += groupes + (bonus ? 1 : 0);
+      for (const r of raisons) if (!cur.raisons.includes(r)) cur.raisons.push(r);
+      acc.set(regle.diagnostic, cur);
     }
   }
 
-  return resultats.sort((a, b) => b.score - a.score).slice(0, 5);
+  // 2) Apports des examens paracliniques (n'ajoute un diagnostic isolé que s'il
+  //    est déjà suspecté cliniquement, sauf preuve forte poids >= 3)
+  for (const a of apportsExamens) {
+    if (acc.has(a.diagnostic) || a.poids >= 3) {
+      ajouter(a.diagnostic, a.poids, a.raison);
+    }
+  }
+
+  return Array.from(acc.entries())
+    .map(([diagnostic, v]) => ({ diagnostic, score: v.score, raisons: v.raisons }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
 }
