@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { genererOrdonnance, genererExamens, genererCertificat, genererCertificatVisite } from "@/lib/pdf";
+import { analyserConstantes, hypothesesDiagnostiques } from "@/lib/clinique";
 
 function formatAge(dateNaissance: string): string {
   const diffMs = Date.now() - new Date(dateNaissance).getTime();
@@ -585,6 +586,23 @@ export default function PatientDossierPage() {
 
   // IMC du formulaire en cours
   const imcEnCours = calcIMC(consultForm.poids, consultForm.taille);
+
+  // Alertes cliniques (tension, fièvre, surcharge pondérale) et hypothèses diagnostiques
+  const antecedentsTxt = `${patient.antecedents_medicaux || ""} ${patient.antecedents_chirurgicaux || ""}`;
+  const alertesConstantes = analyserConstantes({
+    tension: consultForm.tension,
+    temperature: consultForm.temperature,
+    imc: imcEnCours ? parseFloat(imcEnCours) : null,
+  });
+  const hypotheses = hypothesesDiagnostiques({
+    motif: consultForm.motif,
+    examen: consultForm.examen_physique,
+    tension: consultForm.tension,
+    temperature: consultForm.temperature,
+    pouls: consultForm.pouls,
+    imc: imcEnCours ? parseFloat(imcEnCours) : null,
+    antecedents: antecedentsTxt,
+  });
 
   const tabs = [
     { key: "dossier",    label: "Dossier médical",      icon: "📋" },
@@ -1211,6 +1229,27 @@ export default function PatientDossierPage() {
                 </div>
               );
             })()}
+
+            {/* Alertes cliniques automatiques */}
+            {alertesConstantes.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {alertesConstantes.map(a => {
+                  const styles = a.niveau === "danger"
+                    ? "bg-red-50 border-red-300 text-red-800"
+                    : "bg-amber-50 border-amber-300 text-amber-800";
+                  const icon = a.cle === "hypertension" ? "🫀" : a.cle === "fievre" ? "🌡️" : "⚖️";
+                  return (
+                    <div key={a.cle} className={`flex items-start gap-3 border rounded-xl px-4 py-3 ${styles}`}>
+                      <span className="text-lg leading-none mt-0.5">{icon}</span>
+                      <div>
+                        <p className="font-semibold text-sm">⚠️ {a.titre}</p>
+                        <p className="text-xs mt-0.5 opacity-90">{a.detail}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="card">
@@ -1463,6 +1502,37 @@ export default function PatientDossierPage() {
               className="input-field"
               placeholder="Paludisme simple, Pneumonie, HTA, Grippe..."
             />
+
+            {/* Hypothèses diagnostiques suggérées */}
+            {hypotheses.length > 0 && (
+              <div className="mt-3 bg-teal-50 border border-teal-200 rounded-xl p-3">
+                <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  💡 Hypothèses diagnostiques suggérées
+                  <span className="normal-case font-normal text-teal-500">(cliquer pour ajouter — aide à la décision)</span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {hypotheses.map(h => {
+                    const deja = consultForm.diagnostic.toLowerCase().includes(h.diagnostic.toLowerCase());
+                    return (
+                      <button
+                        key={h.diagnostic}
+                        type="button"
+                        title={`Éléments en faveur : ${h.raisons.join(", ")}`}
+                        onClick={() => setConsultForm(f => {
+                          if (f.diagnostic.toLowerCase().includes(h.diagnostic.toLowerCase())) return f;
+                          const sep = f.diagnostic.trim() ? f.diagnostic.trim() + ", " : "";
+                          return { ...f, diagnostic: sep + h.diagnostic };
+                        })}
+                        className={`text-sm px-3 py-1.5 rounded-lg border transition-all text-left ${deja ? "bg-teal-600 border-teal-600 text-white" : "bg-white border-teal-300 text-teal-800 hover:bg-teal-100"}`}
+                      >
+                        <span className="font-medium">{deja ? "✓ " : "+ "}{h.diagnostic}</span>
+                        <span className={`block text-[11px] leading-tight ${deja ? "text-teal-100" : "text-teal-500"}`}>{h.raisons.join(" · ")}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {consultForm.type_prise_en_charge === "ambulatoire" && (

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import ProfessionSelect from "@/components/ProfessionSelect";
 
 interface DashboardStats {
   patientsThisMonth: number;
@@ -372,7 +373,7 @@ export default function MedecinDashboard() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Profession</label>
-                  <input type="text" value={newPatientForm.profession} onChange={e => setNewPatientForm(f => ({ ...f, profession: e.target.value }))} className="input-field" />
+                  <ProfessionSelect value={newPatientForm.profession} onChange={v => setNewPatientForm(f => ({ ...f, profession: v }))} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Résidence/Provenance</label>

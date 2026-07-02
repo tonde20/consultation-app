@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import ProfessionSelect from "@/components/ProfessionSelect";
 
 interface Patient {
   id: number;
@@ -138,7 +139,7 @@ export default function PatientsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Profession</label>
-                <input type="text" value={form.profession} onChange={e => setForm(f => ({ ...f, profession: e.target.value }))} className="input-field" placeholder="Ex: Agriculteur, Commerçant..." />
+                <ProfessionSelect value={form.profession} onChange={v => setForm(f => ({ ...f, profession: v }))} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Résidence / Provenance</label>
