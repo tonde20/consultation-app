@@ -1,5 +1,6 @@
 "use client";
 import Sidebar from "@/components/Sidebar";
+import NotificationBell from "@/components/NotificationBell";
 
 const medecinNav = [
   {
@@ -32,5 +33,9 @@ const medecinNav = [
 ];
 
 export default function MedecinSidebarWrapper({ userName, etablissement }: { userName: string; etablissement: string }) {
-  return <Sidebar items={medecinNav} role="medecin" userName={userName} etablissement={etablissement} />;
+  return (
+    <div className="relative">
+      <Sidebar items={medecinNav} role="medecin" userName={userName} etablissement={etablissement} extra={<NotificationBell />} />
+    </div>
+  );
 }

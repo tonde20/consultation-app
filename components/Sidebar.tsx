@@ -13,9 +13,10 @@ interface SidebarProps {
   role: string;
   userName: string;
   etablissement: string;
+  extra?: React.ReactNode;
 }
 
-export default function Sidebar({ items, role, userName, etablissement }: SidebarProps) {
+export default function Sidebar({ items, role, userName, etablissement, extra }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -34,7 +35,8 @@ export default function Sidebar({ items, role, userName, etablissement }: Sideba
     <aside className="w-72 bg-white border-r border-gray-100 flex flex-col h-screen sticky top-0" style={{ boxShadow: "1px 0 8px 0 rgba(0,0,0,0.04)" }}>
       {/* Logo / Établissement */}
       <div className="px-5 py-5 border-b border-gray-100">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 justify-between">
+          <div className="flex items-center gap-3 min-w-0">
           <div className={`w-10 h-10 ${roleAccent.bg} rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm`}>
             <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -45,6 +47,8 @@ export default function Sidebar({ items, role, userName, etablissement }: Sideba
             <p className="font-bold text-gray-800 text-sm leading-tight">{etablissement}</p>
             <p className="text-xs text-gray-400 mt-0.5">Gestion médicale</p>
           </div>
+          </div>
+          {extra && <div className="shrink-0">{extra}</div>}
         </div>
       </div>
 

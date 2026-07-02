@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initDb, dbAll, dbGet } from '@/lib/db';
+import { initDb, dbAll, dbGet, dbRun } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -55,6 +55,15 @@ export async function POST(req: NextRequest) {
   const result = await dbGet(
     'INSERT INTO rendez_vous (patient_id, doctor_id, date_heure, motif, statut) VALUES ($1, $2, $3, $4, $5) RETURNING id',
     [actualPatientId, doctor_id, date_heure, motif || null, 'en_attente']
+  );
+
+  // Notification automatique au médecin
+  const patient = await dbGet('SELECT nom, prenom FROM patients WHERE id = $1', [actualPatientId]);
+  const dateStr = new Date(date_heure).toLocaleString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const msg = `Nouveau rendez-vous : ${patient?.prenom} ${patient?.nom} — ${dateStr}${motif ? ` (${motif})` : ''}`;
+  await dbRun(
+    'INSERT INTO notifications (doctor_id, type, message, rdv_id) VALUES ($1, $2, $3, $4)',
+    [doctor_id, 'rdv', msg, result.id]
   );
 
   return NextResponse.json({ id: result.id, success: true });

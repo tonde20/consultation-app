@@ -162,6 +162,18 @@ export async function initDb() {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id SERIAL PRIMARY KEY,
+      doctor_id INTEGER NOT NULL REFERENCES doctors(id),
+      type TEXT NOT NULL DEFAULT 'rdv',
+      message TEXT NOT NULL,
+      rdv_id INTEGER REFERENCES rendez_vous(id) ON DELETE SET NULL,
+      lu BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
   await seedData();
 
   // Migration : forcer le nom de l'établissement si encore à l'ancienne valeur

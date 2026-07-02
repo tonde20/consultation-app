@@ -34,3 +34,7 @@ next-env.d.ts
 /data/*.db-shm
 /data/*.db-wal
 .claude/
+
+# electron build output
+/dist/
+/electron/icon.png
