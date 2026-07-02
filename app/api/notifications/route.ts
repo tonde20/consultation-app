@@ -36,6 +36,22 @@ export async function POST(req: NextRequest) {
   }
 
   await initDb();
+
+  // Une notification liée à un rendez-vous n'est autorisée que si celui-ci est
+  // encore « en attente » (inutile de notifier un RDV confirmé/annulé/effectué).
+  if (rdv_id) {
+    const rdv = await dbGet('SELECT statut FROM rendez_vous WHERE id = $1', [rdv_id]);
+    if (!rdv) {
+      return NextResponse.json({ error: 'Rendez-vous introuvable' }, { status: 404 });
+    }
+    if (rdv.statut !== 'en_attente') {
+      return NextResponse.json(
+        { error: 'Ce rendez-vous n\'est plus en attente : notification inutile.' },
+        { status: 409 }
+      );
+    }
+  }
+
   const result = await dbGet(`
     INSERT INTO notifications (doctor_id, type, message, rdv_id)
     VALUES ($1, 'admin_message', $2, $3)

@@ -18,6 +18,7 @@ export default function AdminRendezVousPage() {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [erreur, setErreur] = useState("");
   const [filtre, setFiltre] = useState("tous");
 
   useEffect(() => {
@@ -30,19 +31,26 @@ export default function AdminRendezVousPage() {
     setNotifyModal({ rdv });
     setMessage(`Bonjour Dr. ${rdv.doctor_prenom} ${rdv.doctor_nom}, veuillez confirmer le rendez-vous de ${rdv.patient_prenom} ${rdv.patient_nom} prévu le ${new Date(rdv.date_heure).toLocaleString("fr-FR", { day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" })}.`);
     setSent(false);
+    setErreur("");
   };
 
   const sendNotification = async () => {
     if (!notifyModal || !message.trim()) return;
     setSending(true);
-    await fetch("/api/notifications", {
+    setErreur("");
+    const res = await fetch("/api/notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ doctor_id: notifyModal.rdv.doctor_id, message, rdv_id: notifyModal.rdv.id }),
     });
     setSending(false);
-    setSent(true);
-    setTimeout(() => setNotifyModal(null), 1500);
+    if (res.ok) {
+      setSent(true);
+      setTimeout(() => setNotifyModal(null), 1500);
+    } else {
+      const d = await res.json().catch(() => ({}));
+      setErreur(d.error || "Erreur lors de l'envoi de la notification.");
+    }
   };
 
   const rdvsFiltres = filtre === "tous" ? rdvs : rdvs.filter(r => r.statut === filtre);
@@ -101,16 +109,18 @@ export default function AdminRendezVousPage() {
                         <p className="text-xs text-gray-400 mt-0.5">Dr. {rdv.doctor_prenom} {rdv.doctor_nom}</p>
                         {rdv.motif && <p className="text-xs text-gray-500 mt-0.5 italic">{rdv.motif}</p>}
                       </div>
-                      <button
-                        onClick={() => openNotify(rdv)}
-                        className="shrink-0 flex items-center gap-2 px-3 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-xl text-xs font-medium transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                        </svg>
-                        Notifier
-                      </button>
+                      {rdv.statut === "en_attente" && (
+                        <button
+                          onClick={() => openNotify(rdv)}
+                          className="shrink-0 flex items-center gap-2 px-3 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-xl text-xs font-medium transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                          </svg>
+                          Notifier
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -137,9 +147,12 @@ export default function AdminRendezVousPage() {
                   value={message}
                   onChange={e => setMessage(e.target.value)}
                   rows={4}
-                  className="input-field w-full resize-none mb-4"
+                  className="input-field w-full resize-none mb-2"
                   placeholder="Message pour le médecin..."
                 />
+                {erreur && (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">{erreur}</p>
+                )}
                 <div className="flex gap-3">
                   <button onClick={sendNotification} disabled={sending || !message.trim()} className="btn-primary flex-1">
                     {sending ? "Envoi..." : "Envoyer la notification"}

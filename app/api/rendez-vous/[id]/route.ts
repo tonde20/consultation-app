@@ -10,6 +10,13 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   const { statut, notes } = await req.json();
   await initDb();
   await dbRun('UPDATE rendez_vous SET statut = $1, notes = $2 WHERE id = $3', [statut, notes || null, params.id]);
+
+  // Dès qu'un RDV est confirmé, annulé ou effectué, ses notifications liées
+  // n'ont plus lieu d'être : on les marque comme lues.
+  if (statut && statut !== 'en_attente') {
+    await dbRun('UPDATE notifications SET lu = true WHERE rdv_id = $1 AND lu = false', [params.id]);
+  }
+
   return NextResponse.json({ success: true });
 }
 
